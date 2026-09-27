@@ -1,0 +1,26 @@
+name: On Pull Request (Keel)
+
+on:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'keel/**'
+
+jobs:
+  lint:
+    uses: ./.github/workflows/job-rs-lint.yml
+    with:
+      working-directory: keel
+  test-small:
+    uses: ./.github/workflows/job-rs-test-small.yml
+    with:
+      working-directory: keel
+      with-coverage: true
+  coverage:
+    needs:
+      - test-small
+    uses: ./.github/workflows/job-rs-coverage.yml
+    with:
+      working-directory: keel
+      coverage-threshold: 80
