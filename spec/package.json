@@ -1,0 +1,14 @@
+{
+  "name": "spec",
+  "scripts": {
+    "lint": "redocly lint",
+    "bundle": "redocly bundle nagiboard -o dist/openapi.yaml",
+    "generate": "openapi-generator-cli generate -i dist/openapi.yaml -g rust-axum -o ../mast/openapi --additional-properties=packageName=openapi"
+  },
+  "type": "commonjs",
+  "devDependencies": {
+    "@openapitools/openapi-generator-cli": "^2.41.0",
+    "@redocly/cli": "^2.54.3"
+  },
+  "private": true
+}

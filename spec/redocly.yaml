@@ -1,0 +1,6 @@
+apis:
+  nagiboard:
+    root: openapi.yaml
+
+extends:
+  - recommended
