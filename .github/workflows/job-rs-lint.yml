@@ -1,0 +1,46 @@
+name: Job - Rust Lint and Format Check
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        required: true
+        type: string
+        description: 'Directory of the Cargo project'
+      restore-cache-key:
+        required: false
+        default: ''
+        type: string
+        description: 'Key of a cache to restore before building'
+      restore-cache-path:
+        required: false
+        default: ''
+        type: string
+        description: 'Path of the cache to restore before building'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@v6
+      - if: ${{ inputs.restore-cache-key != '' }}
+        uses: actions/cache/restore@v5
+        with:
+          path: ${{ inputs.restore-cache-path }}
+          key: ${{ inputs.restore-cache-key }}
+          fail-on-cache-miss: true
+      - uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ${{ inputs.working-directory }}/target
+          key: ${{ runner.os }}-cargo-lint-${{ inputs.working-directory }}-${{ hashFiles(format('{0}/Cargo.lock', inputs.working-directory)) }}
+      - name: Format check
+        run: cargo fmt --check
+      - name: Lint check
+        run: cargo clippy --locked --all-targets -- -D warnings

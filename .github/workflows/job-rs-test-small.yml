@@ -1,0 +1,62 @@
+name: Job - Rust Test Small size
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        required: true
+        type: string
+        description: 'Directory of the Cargo project'
+      with-coverage:
+        required: false
+        default: false
+        type: boolean
+        description: 'Run with coverage'
+      restore-cache-key:
+        required: false
+        default: ''
+        type: string
+        description: 'Key of a cache to restore before building'
+      restore-cache-path:
+        required: false
+        default: ''
+        type: string
+        description: 'Path of the cache to restore before building'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@v6
+      - if: ${{ inputs.restore-cache-key != '' }}
+        uses: actions/cache/restore@v5
+        with:
+          path: ${{ inputs.restore-cache-path }}
+          key: ${{ inputs.restore-cache-key }}
+          fail-on-cache-miss: true
+      - uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ${{ inputs.working-directory }}/target
+          key: ${{ runner.os }}-cargo-test-${{ inputs.working-directory }}-${{ hashFiles(format('{0}/Cargo.lock', inputs.working-directory)) }}
+      - name: Run tests
+        if: ${{ !inputs.with-coverage }}
+        run: cargo test --locked
+      - name: Install llvm-cov
+        if: ${{ inputs.with-coverage }}
+        run: cargo install cargo-llvm-cov --locked
+      - name: Run tests with coverage
+        if: ${{ inputs.with-coverage }}
+        run: cargo llvm-cov --locked --output-path coverage.txt
+      - if: ${{ inputs.with-coverage }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.working-directory }}-coverage-report
+          path: ${{ inputs.working-directory }}/coverage.txt
+          retention-days: 1
