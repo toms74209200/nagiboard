@@ -1,0 +1,14 @@
+name: On Pull Request (OpenAPI Spec)
+
+on:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'spec/**'
+
+jobs:
+  lint:
+    uses: ./.github/workflows/job-openapi-lint.yml
+    with:
+      working-directory: spec
