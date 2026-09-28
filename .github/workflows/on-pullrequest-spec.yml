@@ -12,3 +12,11 @@ jobs:
     uses: ./.github/workflows/job-openapi-lint.yml
     with:
       working-directory: spec
+  bundle:
+    needs:
+      - lint
+    uses: ./.github/workflows/job-openapi-bundle.yml
+    permissions:
+      contents: write
+    with:
+      working-directory: spec
