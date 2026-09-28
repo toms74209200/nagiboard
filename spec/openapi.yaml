@@ -12,6 +12,7 @@ security: []
 tags:
   - name: room
     description: Creating and joining rooms
+
 paths:
   /rooms:
     $ref: ./room/rooms.yaml
