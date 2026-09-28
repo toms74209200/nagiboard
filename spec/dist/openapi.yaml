@@ -1,0 +1,102 @@
+openapi: 3.1.0
+info:
+  title: nagiboard
+  version: 0.1.0
+  description: Real-time collaboration API for the event storming board.
+  license:
+    name: MIT
+    identifier: MIT
+servers:
+  - url: /
+security: []
+tags:
+  - name: room
+    description: Creating and joining rooms
+paths:
+  /rooms:
+    post:
+      tags:
+        - room
+      operationId: postRooms
+      summary: Create a room
+      description: |
+        Creates a room so that other people and AI agents can edit the board together,
+        and returns its ID. Knowing the ID is what lets a participant join.
+
+        - A solid connection that the connection rules don't allow is kept as dashed.
+        - Rejected with 422 if the data cannot be decoded, its DSL exceeds 1 MiB, or any
+          line cannot be expressed on a board.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - data
+              properties:
+                data:
+                  type: string
+                  pattern: ^[A-Za-z0-9_-]*$
+                  maxLength: 16384
+                  description: The board as in the `data` parameter of a board URL (raw DEFLATE, then base64url without padding)
+            example:
+              data: HYxLCoQwEAX3fYqHbnWRVsSVCHOA8Qoh9oiQD2Sic_3p-BZvU0W1kFti-ZaUwxkP3IbKWbzgnXfJ-Pj0I7JOMeqs0Wtel_pBcoMV49zxwORSCDbuSt2jbN46QaqRarGZOuZRUwb9og79AQ
+      responses:
+        '201':
+          description: The room was created
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                    description: A random (version 4) UUID
+              example:
+                id: 6f1c2b7e-3a4d-4e8f-9b0a-1c2d3e4f5a6b
+        '422':
+          description: The data cannot be decoded, or its DSL has lines that cannot be expressed on a board
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                required:
+                  - type
+                  - title
+                  - status
+                properties:
+                  type:
+                    type: string
+                    format: uri-reference
+                  title:
+                    type: string
+                  status:
+                    type: integer
+                  detail:
+                    type: string
+                  diagnostics:
+                    type: array
+                    description: Present when the DSL was decoded but has lines that cannot be expressed
+                    items:
+                      type: object
+                      required:
+                        - line
+                        - message
+                      properties:
+                        line:
+                          type: integer
+                          minimum: 1
+                        message:
+                          type: string
+              example:
+                type: about:blank
+                title: Unprocessable Content
+                status: 422
+                diagnostics:
+                  - line: 4
+                    message: '4行目: 未知の付箋タイプ "sticky"'
+components: {}
