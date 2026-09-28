@@ -1,0 +1,31 @@
+name: On Pull Request (Mast)
+
+on:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'mast/**'
+
+jobs:
+  generate:
+    uses: ./.github/workflows/job-openapi-generate.yml
+    with:
+      working-directory: spec
+      output-path: mast/openapi/
+  lint:
+    needs:
+      - generate
+    uses: ./.github/workflows/job-rs-lint.yml
+    with:
+      working-directory: mast
+      restore-cache-key: ${{ needs.generate.outputs.cache-key }}
+      restore-cache-path: mast/openapi/
+  test-small:
+    needs:
+      - generate
+    uses: ./.github/workflows/job-rs-test-small.yml
+    with:
+      working-directory: mast
+      restore-cache-key: ${{ needs.generate.outputs.cache-key }}
+      restore-cache-path: mast/openapi/

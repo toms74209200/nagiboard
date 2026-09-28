@@ -1,0 +1,60 @@
+name: Job - OpenAPI Generate
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        required: true
+        type: string
+        description: 'Directory of the OpenAPI project'
+      output-path:
+        required: true
+        type: string
+        description: 'Path the generate script writes to'
+    outputs:
+      cache-key:
+        description: 'Cache key of the generated code'
+        value: ${{ jobs.generate.outputs.cache-key }}
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      cache-key: ${{ steps.key.outputs.key }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@v6
+      - id: key
+        name: Compute cache key
+        run: echo "key=openapi-generated-${{ inputs.output-path }}-${{ hashFiles(format('{0}/dist/openapi.yaml', inputs.working-directory), format('{0}/openapitools.json', inputs.working-directory)) }}" >> "$GITHUB_OUTPUT"
+      - id: cache
+        uses: actions/cache/restore@v5
+        with:
+          path: ${{ inputs.output-path }}
+          key: ${{ steps.key.outputs.key }}
+          lookup-only: true
+      - if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: ${{ inputs.working-directory }}/package-lock.json
+      - if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/setup-java@v5
+        with:
+          distribution: "temurin"
+          java-version: "21"
+      - if: steps.cache.outputs.cache-hit != 'true'
+        name: Install dependencies
+        run: npm ci
+      - if: steps.cache.outputs.cache-hit != 'true'
+        name: Generate
+        run: npm run generate
+      - if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: ${{ inputs.output-path }}
+          key: ${{ steps.key.outputs.key }}
