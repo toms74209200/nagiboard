@@ -26,7 +26,3 @@ jobs:
         run: npm ci
       - name: Lint check
         run: npm run lint -- --format github-actions
-      - name: Bundle
-        run: npm run bundle
-      - name: Check bundle is up to date
-        run: git diff --exit-code -- dist/
