@@ -193,11 +193,11 @@ WebSocket.
 A session ("room") is the live, in-memory state of one board being edited together: the
 board, its sequence number, a bounded log of recent operations, and the participants.
 
-- **Room IDs are capabilities.** A room ID is 128 random bits, base64url-encoded. Knowing
-  it is what lets you join. The share URL carries both the board and the room:
+- **Room IDs are capabilities.** A room ID is a random (version 4) UUID. Knowing it is
+  what lets you join. The share URL carries both the board and the room:
   `?data=<encoded>&room=<id>`.
-- **Starting a session.** "Share live" on a board sends its current DSL to the server,
-  which creates a room and returns its ID. The SPA adds `room` to its URL.
+- **Starting a session.** "Share live" on a board sends its current `data` value to the
+  server, which creates a room and returns its ID. The SPA adds `room` to its URL.
 - **The URL keeps working as a save form.** Every participant's SPA keeps updating
   `data` in its own URL after every change, exactly as today. At any moment, any
   participant's URL is a complete copy of the board.
