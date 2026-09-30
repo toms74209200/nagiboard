@@ -1,0 +1,24 @@
+name: On Pull Request (Mast Tests)
+
+on:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'mast-tests/**/*.py'
+      - 'mast-tests/pyproject.toml'
+      - 'mast-tests/uv.lock'
+
+jobs:
+  generate:
+    uses: ./.github/workflows/job-openapi-generate.yml
+    with:
+      working-directory: spec
+      output-path: mast/openapi/
+  test-medium:
+    needs:
+      - generate
+    uses: ./.github/workflows/job-api-test-medium.yml
+    with:
+      restore-cache-key: ${{ needs.generate.outputs.cache-key }}
+      restore-cache-path: mast/openapi/
