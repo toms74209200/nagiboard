@@ -716,6 +716,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "keel"
+version = "0.1.0"
+
+[[package]]
 name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -769,9 +773,14 @@ dependencies = [
 name = "mast"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "axum",
+ "axum-extra",
+ "keel",
  "openapi",
+ "random-string",
  "tokio",
+ "uuid",
 ]
 
 [[package]]
@@ -1012,6 +1021,10 @@ checksum = "1fbf4db142a473a8d80c26bbf18454ed458bf8d26c8219c331daecfdbd079001"
 dependencies = [
  "proc-macro2",
 ]
+
+[[package]]
+name = "random-string"
+version = "0.1.0"
 
 [[package]]
 name = "redox_syscall"
