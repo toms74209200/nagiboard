@@ -1,0 +1,49 @@
+name: Job - API Test Medium size
+
+on:
+  workflow_call:
+    inputs:
+      restore-cache-key:
+        required: true
+        type: string
+        description: 'Key of the cache of the generated server code'
+      restore-cache-path:
+        required: true
+        type: string
+        description: 'Path of the cache of the generated server code'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/cache/restore@v5
+        with:
+          path: ${{ inputs.restore-cache-path }}
+          key: ${{ inputs.restore-cache-key }}
+          fail-on-cache-miss: true
+      - uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            mast/target
+          key: ${{ runner.os }}-cargo-api-test-mast-${{ hashFiles('mast/Cargo.lock') }}
+      - name: Build server
+        working-directory: mast
+        run: cargo build --locked
+      - name: Launch server
+        working-directory: mast
+        run: ./target/debug/mast &
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version-file: mast-tests/.python-version
+      - name: Install dependencies
+        working-directory: mast-tests
+        run: uv sync --locked
+      - name: Wait for server to be ready
+        run: ./.github/scripts/wait-for-it.sh localhost:8080
+      - name: Run tests
+        working-directory: mast-tests
+        run: uv run pytest tests/ -vv
