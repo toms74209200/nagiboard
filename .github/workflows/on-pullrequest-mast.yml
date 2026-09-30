@@ -29,3 +29,11 @@ jobs:
       working-directory: mast
       restore-cache-key: ${{ needs.generate.outputs.cache-key }}
       restore-cache-path: mast/openapi/
+  test-medium:
+    needs:
+      - generate
+    uses: ./.github/workflows/job-rs-test-medium.yml
+    with:
+      working-directory: mast
+      restore-cache-key: ${{ needs.generate.outputs.cache-key }}
+      restore-cache-path: mast/openapi/
