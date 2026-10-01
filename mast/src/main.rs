@@ -1,10 +1,13 @@
 mod base64url;
+mod board;
 mod deflate;
 mod room;
+mod uuid_v4;
 
 #[derive(Clone, Default)]
 struct ApiImpl {
-    room_events: std::sync::Arc<room::room_events::RoomEvents>,
+    board_events: std::sync::Arc<std::sync::Mutex<Vec<board::board_created::BoardCreated>>>,
+    room_events: std::sync::Arc<std::sync::Mutex<Vec<room::room_created::RoomCreated>>>,
 }
 
 impl AsRef<ApiImpl> for ApiImpl {
