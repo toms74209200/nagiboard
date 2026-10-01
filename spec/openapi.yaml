@@ -12,7 +12,13 @@ security: []
 tags:
   - name: room
     description: Creating and joining rooms
+  - name: board
+    description: Reading boards
 
 paths:
   /rooms:
-    $ref: ./room/rooms.yaml
+    $ref: ./room/rooms.yaml#/~1rooms
+  /rooms/{id}/boards:
+    $ref: ./room/rooms.yaml#/~1rooms~1{id}~1boards
+  /boards/{id}:
+    $ref: ./board/boards.yaml#/~1boards~1{id}

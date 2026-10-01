@@ -1,0 +1,40 @@
+/boards/{id}:
+  get:
+    tags:
+      - board
+    operationId: getBoard
+    summary: Get a board
+    description: Returns the current content of the board as DSL.
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: The board ID
+        schema:
+          type: string
+          format: uuid
+    responses:
+      '200':
+        description: The current content of the board
+        content:
+          text/plain:
+            schema:
+              type: string
+            example: |
+              # eventstorming v1
+              title Order flow
+
+              actor     a1   "Customer" @ 48,232
+              command   c1   "Place order" @ 216,224
+
+              a1 -> c1
+      '404':
+        description: No board has the ID
+        content:
+          application/problem+json:
+            schema:
+              $ref: ../problem.yaml
+            example:
+              type: about:blank
+              title: Not Found
+              status: 404
