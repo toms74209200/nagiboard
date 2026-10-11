@@ -1,0 +1,6 @@
+# This file instructs Redocly's linter to ignore the rules contained for specific parts of your API.
+# See https://redocly.com/docs/cli/ for more information.
+deck/deck.yaml:
+  operation-4xx-response:
+    - '#/~1/get/responses'
+    - '#/~1favicon.svg/get/responses'

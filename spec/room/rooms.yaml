@@ -9,7 +9,7 @@
       and returns its ID. Knowing the ID is what lets a participant join.
 
       - A solid connection that the connection rules don't allow is kept as dashed.
-      - Rejected with 422 if the data cannot be decoded, its DSL exceeds 1 MiB, or any
+      - Rejected with 400 if the data cannot be decoded, its DSL exceeds 1 MiB, or any
         line cannot be expressed on a board.
     requestBody:
       required: true
@@ -36,14 +36,22 @@
               type: object
               required:
                 - id
+                - shareUrl
               properties:
                 id:
                   type: string
                   format: uuid
                   description: A random (version 4) UUID
+                shareUrl:
+                  type: string
+                  format: uri-reference
+                  description: |
+                    The link that opens the board of the room in the app. It is relative to
+                    this server, so it is resolved against the URL the request was sent to.
             example:
               id: 6f1c2b7e-3a4d-4e8f-9b0a-1c2d3e4f5a6b
-      '422':
+              shareUrl: /?room=6f1c2b7e-3a4d-4e8f-9b0a-1c2d3e4f5a6b
+      '400':
         description: The data cannot be decoded, or its DSL has lines that cannot be expressed on a board
         content:
           application/problem+json:
@@ -79,8 +87,8 @@
                         type: string
             example:
               type: about:blank
-              title: Unprocessable Content
-              status: 422
+              title: Bad Request
+              status: 400
               diagnostics:
                 - line: 4
                   message: '4行目: 未知の付箋タイプ "sticky"'
