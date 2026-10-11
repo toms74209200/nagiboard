@@ -14,7 +14,108 @@ tags:
     description: Creating and joining rooms
   - name: board
     description: Reading boards
+  - name: deck
+    description: Opening the board app
 paths:
+  /:
+    get:
+      tags:
+        - deck
+      operationId: getDeck
+      summary: Open the board app
+      description: |
+        Returns the page of the board app. A share link of a room opens this page with
+        the room ID, and the app reads the boards of the room.
+      parameters:
+        - name: room
+          in: query
+          required: false
+          description: The room ID of a share link
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The page of the board app
+          content:
+            text/html:
+              schema:
+                type: string
+  /scripts/{name}:
+    get:
+      tags:
+        - deck
+      operationId: getDeckScript
+      summary: Get a script of the board app
+      parameters:
+        - name: name
+          in: path
+          required: true
+          description: The file name the page refers to
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9_-]+\.js$
+      responses:
+        '200':
+          description: The script
+          content:
+            text/javascript:
+              schema:
+                type: string
+        '404':
+          description: The app has no script of the name
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/problem'
+              example:
+                type: about:blank
+                title: Not Found
+                status: 404
+  /styles/{name}:
+    get:
+      tags:
+        - deck
+      operationId: getDeckStyle
+      summary: Get a stylesheet of the board app
+      parameters:
+        - name: name
+          in: path
+          required: true
+          description: The file name the page refers to
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9_-]+\.css$
+      responses:
+        '200':
+          description: The stylesheet
+          content:
+            text/css:
+              schema:
+                type: string
+        '404':
+          description: The app has no stylesheet of the name
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/problem'
+              example:
+                type: about:blank
+                title: Not Found
+                status: 404
+  /favicon.svg:
+    get:
+      tags:
+        - deck
+      operationId: getDeckIcon
+      summary: Get the icon of the board app
+      responses:
+        '200':
+          description: The icon
+          content:
+            image/svg+xml:
+              schema:
+                type: string
   /rooms:
     post:
       tags:
@@ -26,7 +127,7 @@ paths:
         and returns its ID. Knowing the ID is what lets a participant join.
 
         - A solid connection that the connection rules don't allow is kept as dashed.
-        - Rejected with 422 if the data cannot be decoded, its DSL exceeds 1 MiB, or any
+        - Rejected with 400 if the data cannot be decoded, its DSL exceeds 1 MiB, or any
           line cannot be expressed on a board.
       requestBody:
         required: true
@@ -53,14 +154,22 @@ paths:
                 type: object
                 required:
                   - id
+                  - shareUrl
                 properties:
                   id:
                     type: string
                     format: uuid
                     description: A random (version 4) UUID
+                  shareUrl:
+                    type: string
+                    format: uri-reference
+                    description: |
+                      The link that opens the board of the room in the app. It is relative to
+                      this server, so it is resolved against the URL the request was sent to.
               example:
                 id: 6f1c2b7e-3a4d-4e8f-9b0a-1c2d3e4f5a6b
-        '422':
+                shareUrl: /?room=6f1c2b7e-3a4d-4e8f-9b0a-1c2d3e4f5a6b
+        '400':
           description: The data cannot be decoded, or its DSL has lines that cannot be expressed on a board
           content:
             application/problem+json:
@@ -96,8 +205,8 @@ paths:
                           type: string
               example:
                 type: about:blank
-                title: Unprocessable Content
-                status: 422
+                title: Bad Request
+                status: 400
                 diagnostics:
                   - line: 4
                     message: '4行目: 未知の付箋タイプ "sticky"'
