@@ -30,38 +30,35 @@ impl openapi::apis::room::Room<String> for crate::ApiImpl {
         _cookies: &axum_extra::extract::CookieJar,
         body: &openapi::models::PostRoomsRequest,
     ) -> Result<openapi::apis::room::PostRoomsResponse, String> {
-        Ok(
-            match super::create_room::create_room(
-                &self.board_events,
-                &self.room_events,
-                &body.data,
-            )? {
-                Ok(id) => openapi::apis::room::PostRoomsResponse::Status201_TheRoomWasCreated(
-                    openapi::models::PostRooms201Response::new(id),
+        match super::create_room::create_room(&self.board_events, &self.room_events, &body.data) {
+            Ok((id, share_url)) => Ok(
+                openapi::apis::room::PostRoomsResponse::Status201_TheRoomWasCreated(
+                    openapi::models::PostRooms201Response::new(id, share_url),
                 ),
-                Err(diagnostics) => {
-                    openapi::apis::room::PostRoomsResponse::Status422_TheDataCannotBeDecoded(
-                        openapi::models::PostRooms422Response {
-                            diagnostics: diagnostics.map(|diagnostics| {
-                                diagnostics
-                                    .iter()
-                                    .map(|d| {
-                                        openapi::models::PostRooms422ResponseDiagnosticsInner::new(
-                                            d.line as u32,
-                                            d.to_string(),
-                                        )
-                                    })
-                                    .collect()
-                            }),
-                            ..openapi::models::PostRooms422Response::new(
-                                "about:blank".to_string(),
-                                "Unprocessable Content".to_string(),
-                                422,
-                            )
-                        },
-                    )
-                }
-            },
-        )
+            ),
+            Err(super::create_room::CreateRoomError::InvalidData(diagnostics)) => Ok(
+                openapi::apis::room::PostRoomsResponse::Status400_TheDataCannotBeDecoded(
+                    openapi::models::PostRooms400Response {
+                        diagnostics: (!diagnostics.is_empty()).then(|| {
+                            diagnostics
+                                .iter()
+                                .map(|d| {
+                                    openapi::models::PostRooms400ResponseDiagnosticsInner::new(
+                                        d.line as u32,
+                                        d.to_string(),
+                                    )
+                                })
+                                .collect()
+                        }),
+                        ..openapi::models::PostRooms400Response::new(
+                            "about:blank".to_string(),
+                            "Bad Request".to_string(),
+                            400,
+                        )
+                    },
+                ),
+            ),
+            Err(super::create_room::CreateRoomError::Internal(e)) => Err(e),
+        }
     }
 }
