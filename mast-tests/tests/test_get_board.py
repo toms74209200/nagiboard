@@ -27,7 +27,7 @@ def test_get_board_with_id_of_board_of_created_room_returns_200_with_its_content
     assert response.text == dsl
 
 
-def test_get_board_by_another_user_of_the_room_returns_the_same_content():
+def test_get_board_with_id_of_board_of_created_room_by_another_user_returns_the_same_content():
     dsl = f'# eventstorming v1\n\nevent     e1   "{uuid4().hex}" @ 0,0\n'
     compressor = zlib.compressobj(wbits=-15)
     data = (

@@ -4,7 +4,7 @@ mod deflate;
 mod room;
 mod uuid_v4;
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 struct ApiImpl {
     board_events: std::sync::Arc<std::sync::Mutex<Vec<board::board_created::BoardCreated>>>,
     room_events: std::sync::Arc<std::sync::Mutex<Vec<room::room_created::RoomCreated>>>,
@@ -20,7 +20,10 @@ impl openapi::apis::ErrorHandler<String> for ApiImpl {}
 
 #[tokio::main]
 async fn main() {
-    let router = openapi::server::new::<_, ApiImpl, String>(ApiImpl::default());
+    let router = openapi::server::new::<_, ApiImpl, String>(ApiImpl {
+        board_events: std::sync::Arc::default(),
+        room_events: std::sync::Arc::default(),
+    });
 
     let port = std::env::var("PORT").unwrap_or_else(|_| "8080".to_string());
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}"))
