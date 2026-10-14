@@ -1,0 +1,27 @@
+name: On Pull Request (Deck)
+
+on:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'deck/**'
+
+jobs:
+  lint:
+    uses: ./.github/workflows/job-ts-lint.yml
+    with:
+      working-directory: deck
+  test-small:
+    uses: ./.github/workflows/job-ts-test-small.yml
+    with:
+      working-directory: deck
+  bundle:
+    needs:
+      - lint
+      - test-small
+    uses: ./.github/workflows/job-ts-bundle.yml
+    permissions:
+      contents: write
+    with:
+      working-directory: deck
