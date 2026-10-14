@@ -1,0 +1,25 @@
+{
+	"name": "deck",
+	"private": true,
+	"version": "0.0.0",
+	"type": "module",
+	"scripts": {
+		"dev": "vite",
+		"build": "tsc -b && vite build",
+		"bundle": "tsc -b && vite build --outDir bundle",
+		"preview": "vite preview",
+		"lint": "biome check",
+		"test:small": "vitest run --passWithNoTests"
+	},
+	"dependencies": {
+		"preact": "^10.29.8"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.5.15",
+		"@preact/preset-vite": "^2.10.6",
+		"@types/node": "^24.13.3",
+		"typescript": "~6.0.2",
+		"vite": "^8.3.0",
+		"vitest": "^5.0.4"
+	}
+}
