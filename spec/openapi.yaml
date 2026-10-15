@@ -14,8 +14,14 @@ tags:
     description: Creating and joining rooms
   - name: board
     description: Reading boards
+  - name: deck
+    description: Opening the board app
 
 paths:
+  /:
+    $ref: ./deck/deck.yaml#/~1
+  /assets/{name}:
+    $ref: ./deck/deck.yaml#/~1assets~1{name}
   /rooms:
     $ref: ./room/rooms.yaml#/~1rooms
   /rooms/{id}/boards:
