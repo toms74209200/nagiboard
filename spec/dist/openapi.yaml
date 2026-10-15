@@ -14,7 +14,64 @@ tags:
     description: Creating and joining rooms
   - name: board
     description: Reading boards
+  - name: deck
+    description: Opening the board app
 paths:
+  /:
+    get:
+      tags:
+        - deck
+      operationId: getDeck
+      summary: Open the board app
+      description: |
+        Returns the page of the board app. A share link of a room opens this page with
+        the room ID, and the app reads the boards of the room.
+      parameters:
+        - name: room
+          in: query
+          required: false
+          description: The room ID of a share link
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The page of the board app
+          content:
+            text/html:
+              schema:
+                type: string
+  /assets/{name}:
+    get:
+      tags:
+        - deck
+      operationId: getDeckAsset
+      summary: Get a script of the board app
+      parameters:
+        - name: name
+          in: path
+          required: true
+          description: The file name the page refers to
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9_-]+\.js$
+      responses:
+        '200':
+          description: The script
+          content:
+            text/javascript:
+              schema:
+                type: string
+        '404':
+          description: The app has no script of the name
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/problem'
+              example:
+                type: about:blank
+                title: Not Found
+                status: 404
   /rooms:
     post:
       tags:
