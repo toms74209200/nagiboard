@@ -1,5 +1,6 @@
 mod base64url;
 mod board;
+mod deck;
 mod deflate;
 mod room;
 mod uuid_v4;
@@ -8,6 +9,7 @@ mod uuid_v4;
 struct ApiImpl {
     board_events: std::sync::Arc<std::sync::Mutex<Vec<board::board_created::BoardCreated>>>,
     room_events: std::sync::Arc<std::sync::Mutex<Vec<room::room_created::RoomCreated>>>,
+    deck_dir: std::sync::Arc<std::path::PathBuf>,
 }
 
 impl AsRef<ApiImpl> for ApiImpl {
@@ -23,6 +25,11 @@ async fn main() {
     let router = openapi::server::new::<_, ApiImpl, String>(ApiImpl {
         board_events: std::sync::Arc::default(),
         room_events: std::sync::Arc::default(),
+        deck_dir: std::sync::Arc::new(std::path::PathBuf::from(
+            std::env::var("DECK_DIR").unwrap_or_else(|_| {
+                concat!(env!("CARGO_MANIFEST_DIR"), "/../deck/bundle").to_string()
+            }),
+        )),
     });
 
     let port = std::env::var("PORT").unwrap_or_else(|_| "8080".to_string());
