@@ -5,13 +5,33 @@ import {
 	dslPanelVisible,
 	setTitle,
 } from "../features/board/store";
+import { dslText } from "../features/dsl/dslText";
 import {
 	downloadBoardPng,
 	downloadBoardSvg,
 } from "../features/imageExport/download";
+import { shareBoard } from "../features/share/shareBoard";
 import { showToast } from "./toast";
 
 export const Topbar = ({ onShowRules }: { onShowRules: () => void }) => {
+	const share = async () => {
+		const result = await shareBoard(dslText.peek());
+		if (result.kind === "rejected") {
+			showToast(result.message, "error");
+			return;
+		}
+		if (result.kind === "failed") {
+			showToast("ボードを共有できませんでした", "error");
+			return;
+		}
+		try {
+			await navigator.clipboard.writeText(result.shareUrl);
+			showToast("共有リンクをコピーしました");
+		} catch {
+			showToast(`共有リンク: ${result.shareUrl}`);
+		}
+	};
+
 	const exportImage = async (kind: "svg" | "png") => {
 		try {
 			const ok =
@@ -34,6 +54,9 @@ export const Topbar = ({ onShowRules }: { onShowRules: () => void }) => {
 				onInput={(ev) => setTitle(ev.currentTarget.value)}
 			/>
 			<div class="spacer" />
+			<button type="button" class="btn" onClick={() => void share()}>
+				共有
+			</button>
 			<button type="button" class="btn" onClick={onShowRules}>
 				接続ルール
 			</button>
