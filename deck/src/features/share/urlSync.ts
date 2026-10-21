@@ -4,6 +4,7 @@ import { emptyBoard } from "../board/_models/board";
 import { loadBoard } from "../board/store";
 import { parseDsl, serializeDsl } from "../dsl/_models/dsl";
 import { dslText } from "../dsl/dslText";
+import { boardSourceOf } from "./_models/boardSource";
 import { decodeParamToDsl, encodeDslToParam } from "./_models/codec";
 
 const URL_PARAM = "data";
@@ -13,10 +14,10 @@ const WRITE_DEBOUNCE_MS = 300;
 let suspendedBaseline: string | null = null;
 
 export const restoreBoardFromUrl = async (): Promise<void> => {
-	const param = new URLSearchParams(location.search).get(URL_PARAM);
-	if (!param) return;
+	const source = boardSourceOf(location.search);
+	if (source.kind !== "data") return;
 	try {
-		const text = await decodeParamToDsl(param);
+		const text = await decodeParamToDsl(source.param);
 		const result = parseDsl(text);
 		if (result.errors.length) {
 			suspendedBaseline = dslText.peek();
