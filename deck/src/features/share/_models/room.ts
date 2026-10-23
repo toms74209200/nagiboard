@@ -19,6 +19,12 @@ export const problemMessage = (body: unknown): string | null => {
 	return typeof body.detail === "string" ? body.detail : null;
 };
 
+export const firstBoardId = (body: unknown): string | null => {
+	if (!isRecord(body) || !Array.isArray(body.boards)) return null;
+	const [first] = body.boards;
+	return typeof first === "string" ? first : null;
+};
+
 export const withRoom = (href: string, id: string): string => {
 	const url = new URL(href);
 	url.searchParams.set("room", id);

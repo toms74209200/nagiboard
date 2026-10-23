@@ -1,5 +1,10 @@
 import { expect, test } from "vitest";
-import { parseCreatedRoom, problemMessage, withRoom } from "./room";
+import {
+	firstBoardId,
+	parseCreatedRoom,
+	problemMessage,
+	withRoom,
+} from "./room";
 
 test.each([
 	{
@@ -87,4 +92,39 @@ test.each([
 	},
 ])("$name", ({ href, expected }) => {
 	expect(withRoom(href, "r1")).toBe(expected);
+});
+
+test.each([
+	{
+		name: "when firstBoardId with boards then returns the first id",
+		body: {
+			boards: [
+				"0b7c9e2d-5f14-4a3b-8c6d-2e9f1a4b7c3e",
+				"1c8d0f3e-6a25-4b4c-9d7e-3f0a2b5c8d4f",
+			],
+		},
+		expected: "0b7c9e2d-5f14-4a3b-8c6d-2e9f1a4b7c3e",
+	},
+	{
+		name: "when firstBoardId with empty boards then returns null",
+		body: { boards: [] },
+		expected: null,
+	},
+	{
+		name: "when firstBoardId with non-string id then returns null",
+		body: { boards: [1] },
+		expected: null,
+	},
+	{
+		name: "when firstBoardId without boards then returns null",
+		body: {},
+		expected: null,
+	},
+	{
+		name: "when firstBoardId with null then returns null",
+		body: null,
+		expected: null,
+	},
+])("$name", ({ body, expected }) => {
+	expect(firstBoardId(body)).toBe(expected);
 });

@@ -1,9 +1,6 @@
 import { encodeDslToParam } from "./_models/codec";
 import { parseCreatedRoom, problemMessage, withRoom } from "./_models/room";
-
-const API_ORIGIN = import.meta.env.DEV
-	? "http://localhost:4010"
-	: location.origin;
+import { API_ORIGIN } from "./apiOrigin";
 
 export type ShareResult =
 	| { readonly kind: "shared"; readonly shareUrl: string }
