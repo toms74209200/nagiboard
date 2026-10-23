@@ -6,6 +6,7 @@ import { parseDsl, serializeDsl } from "../dsl/_models/dsl";
 import { dslText } from "../dsl/dslText";
 import { boardSourceOf } from "./_models/boardSource";
 import { decodeParamToDsl, encodeDslToParam } from "./_models/codec";
+import { fetchSharedBoard } from "./fetchSharedBoard";
 
 const URL_PARAM = "data";
 const URL_LENGTH_WARNING = 8000;
@@ -13,27 +14,50 @@ const WRITE_DEBOUNCE_MS = 300;
 
 let suspendedBaseline: string | null = null;
 
-export const restoreBoardFromUrl = async (): Promise<void> => {
-	const source = boardSourceOf(location.search);
-	if (source.kind !== "data") return;
+const loadDsl = (text: string, errorPrefix: string): void => {
+	const result = parseDsl(text);
+	if (result.errors.length) {
+		suspendedBaseline = dslText.peek();
+		showToast(`${errorPrefix}: ${result.errors[0]}`, "error");
+		return;
+	}
+	loadBoard(result.board);
+	if (result.coerced) {
+		showToast(
+			`ルール外の矢印 ${result.coerced} 本を点線(例外)として読み込みました`,
+		);
+	}
+};
+
+const restoreBoardFromData = async (param: string): Promise<void> => {
 	try {
-		const text = await decodeParamToDsl(source.param);
-		const result = parseDsl(text);
-		if (result.errors.length) {
-			suspendedBaseline = dslText.peek();
-			showToast(`URLの復元でエラー: ${result.errors[0]}`, "error");
-			return;
-		}
-		loadBoard(result.board);
-		if (result.coerced) {
-			showToast(
-				`ルール外の矢印 ${result.coerced} 本を点線(例外)として読み込みました`,
-			);
-		}
+		loadDsl(await decodeParamToDsl(param), "URLの復元でエラー");
 	} catch {
 		suspendedBaseline = dslText.peek();
 		showToast("URLからボードを復元できませんでした", "error");
 	}
+};
+
+const restoreBoardFromRoom = async (id: string): Promise<void> => {
+	const result = await fetchSharedBoard(id);
+	if (result.kind === "fetched") {
+		loadDsl(result.dsl, "共有ボードの読み込みでエラー");
+		return;
+	}
+	showToast(
+		result.kind === "failed"
+			? "共有ボードを読み込めませんでした"
+			: result.target === "room"
+				? "共有ルームが見つかりません"
+				: "共有ボードが見つかりません",
+		"error",
+	);
+};
+
+export const restoreBoardFromUrl = async (): Promise<void> => {
+	const source = boardSourceOf(location.search);
+	if (source.kind === "data") await restoreBoardFromData(source.param);
+	if (source.kind === "room") await restoreBoardFromRoom(source.id);
 };
 
 const EMPTY_DSL = serializeDsl(emptyBoard);
