@@ -26,5 +26,7 @@ paths:
     $ref: ./room/rooms.yaml#/~1rooms
   /rooms/{id}/boards:
     $ref: ./room/rooms.yaml#/~1rooms~1{id}~1boards
+  /rooms/{id}/ops:
+    $ref: ./room/rooms.yaml#/~1rooms~1{id}~1ops
   /boards/{id}:
     $ref: ./board/boards.yaml#/~1boards~1{id}
