@@ -151,6 +151,8 @@
         is last by the order in which it applies batches.
       - A proposed note ID that is already taken is reassigned to the next free ID of
         its note type, and the result of the operation says so.
+      - An operation that is not possible on the board is skipped, and the result of the
+        operation says so. If no operation is possible, the batch gets no sequence number.
     parameters:
       - name: id
         in: path
@@ -206,8 +208,8 @@
                     - title: MoveNotes
                       type: object
                       description: |
-                        Sets the absolute positions of notes. The last write wins per note,
-                        and a note that no longer exists is skipped.
+                        Sets the absolute positions of notes. The last write wins per note.
+                        It is skipped if any of the notes does not exist.
                       required:
                         - type
                         - positions
@@ -258,8 +260,11 @@
               properties:
                 seq:
                   type: integer
-                  minimum: 1
-                  description: The sequence number given to the batch
+                  minimum: 0
+                  description: |
+                    The sequence number of the board after the batch: the one given to the
+                    batch, or the current one if no operation was possible. 0 means the board
+                    has not been edited since it was created.
                 results:
                   type: array
                   description: The result of each operation, in the order of `ops`
@@ -270,7 +275,7 @@
                     properties:
                       status:
                         type: string
-                        pattern: '^(applied|reassigned)$'
+                        pattern: '^(applied|reassigned|skipped)$'
                       id:
                         type: string
                         description: The note ID the server assigned, present when `status` is `reassigned`
