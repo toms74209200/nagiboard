@@ -1,3 +1,4 @@
+use crate::note_type::NoteType;
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -10,6 +11,10 @@ impl NoteId {
                 .chars()
                 .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-'))
         .then(|| Self(value.to_string()))
+    }
+
+    pub(crate) fn numbered(note_type: NoteType, number: u32) -> Self {
+        Self(format!("{}{number}", note_type.id_prefix()))
     }
 
     pub fn as_str(&self) -> &str {
