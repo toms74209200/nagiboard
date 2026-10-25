@@ -39,6 +39,19 @@ impl NoteType {
         }
     }
 
+    pub(crate) fn id_prefix(self) -> &'static str {
+        match self {
+            NoteType::Event => "e",
+            NoteType::Command => "c",
+            NoteType::Actor => "a",
+            NoteType::Aggregate => "g",
+            NoteType::Policy => "p",
+            NoteType::ReadModel => "r",
+            NoteType::System => "s",
+            NoteType::Hotspot => "h",
+        }
+    }
+
     pub(crate) fn can_connect_to(self, to: NoteType) -> bool {
         use NoteType::*;
         matches!(
