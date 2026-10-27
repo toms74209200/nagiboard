@@ -2,12 +2,14 @@ mod base64url;
 mod board;
 mod deck;
 mod deflate;
+mod non_empty;
 mod room;
 mod uuid_v4;
 
 #[derive(Clone)]
 struct ApiImpl {
     board_events: std::sync::Arc<std::sync::Mutex<Vec<board::board_created::BoardCreated>>>,
+    board_edited_events: std::sync::Arc<std::sync::Mutex<Vec<board::board_edited::BoardEdited>>>,
     room_events: std::sync::Arc<std::sync::Mutex<Vec<room::room_created::RoomCreated>>>,
     deck_dir: std::sync::Arc<std::path::PathBuf>,
 }
@@ -24,6 +26,7 @@ impl openapi::apis::ErrorHandler<String> for ApiImpl {}
 async fn main() {
     let router = openapi::server::new::<_, ApiImpl, String>(ApiImpl {
         board_events: std::sync::Arc::default(),
+        board_edited_events: std::sync::Arc::default(),
         room_events: std::sync::Arc::default(),
         deck_dir: std::sync::Arc::new(std::path::PathBuf::from(
             std::env::var("DECK_DIR").unwrap_or_else(|_| {
