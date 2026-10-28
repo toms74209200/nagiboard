@@ -8,7 +8,11 @@ impl openapi::apis::board::Board<String> for crate::ApiImpl {
         path_params: &openapi::models::GetBoardPathParams,
     ) -> Result<openapi::apis::board::GetBoardResponse, String> {
         Ok(
-            match super::get_board::get_board(&self.board_events, path_params.id)? {
+            match super::get_board::get_board(
+                &self.board_events,
+                &self.board_edited_events,
+                path_params.id,
+            )? {
                 Some(dsl) => {
                     openapi::apis::board::GetBoardResponse::Status200_TheCurrentContentOfTheBoard(
                         dsl,
