@@ -27,8 +27,16 @@ jobs:
     uses: ./.github/workflows/job-rs-test-small.yml
     with:
       working-directory: mast
+      with-coverage: true
       restore-cache-key: ${{ needs.generate.outputs.cache-key }}
       restore-cache-path: mast/openapi/
+  coverage:
+    needs:
+      - test-small
+    uses: ./.github/workflows/job-rs-coverage.yml
+    with:
+      working-directory: mast
+      coverage-threshold: 80
   test-medium:
     needs:
       - generate

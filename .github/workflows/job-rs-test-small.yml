@@ -53,7 +53,16 @@ jobs:
         run: cargo install cargo-llvm-cov --locked
       - name: Run tests with coverage
         if: ${{ inputs.with-coverage }}
-        run: cargo llvm-cov --locked --output-path coverage.txt
+        run: |
+          ignore=""
+          if [ -f scripts/coverage_ignore.txt ]; then
+            ignore=$(grep -Ev '^\s*(#|$)' scripts/coverage_ignore.txt | sed 's#^#src/#; s#$#\\.rs$#' | paste -sd '|' -)
+          fi
+          if [ -n "$ignore" ]; then
+            cargo llvm-cov --locked --ignore-filename-regex "$ignore" --output-path coverage.txt
+          else
+            cargo llvm-cov --locked --output-path coverage.txt
+          fi
       - if: ${{ inputs.with-coverage }}
         uses: actions/upload-artifact@v7
         with:
