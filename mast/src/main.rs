@@ -1,7 +1,6 @@
-mod base64url;
 mod board;
+mod codec;
 mod deck;
-mod deflate;
 mod non_empty;
 mod room;
 mod uuid_v4;

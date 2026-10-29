@@ -11,9 +11,7 @@ pub fn create_room(
     room_events: &std::sync::Mutex<Vec<super::room_created::RoomCreated>>,
     data: &str,
 ) -> Result<(uuid::Uuid, String), CreateRoomError> {
-    let dsl = crate::base64url::decode(data)
-        .and_then(|bytes| crate::deflate::inflate(&bytes, MAX_DSL_BYTES))
-        .and_then(|bytes| String::from_utf8(bytes).ok())
+    let dsl = crate::codec::decode(data, MAX_DSL_BYTES)
         .ok_or(CreateRoomError::InvalidData(Vec::new()))?;
     let content = crate::board::dsl::board_from_dsl(&dsl).map_err(CreateRoomError::InvalidData)?;
     let board = crate::uuid_v4::generate().map_err(CreateRoomError::Internal)?;
