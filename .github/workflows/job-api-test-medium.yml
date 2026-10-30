@@ -46,4 +46,14 @@ jobs:
         run: ./.github/scripts/wait-for-it.sh localhost:8080
       - name: Run tests
         working-directory: mast-tests
-        run: uv run pytest tests/ -vv
+        run: uv run pytest tests/ -vv --span-report
+      - name: Print span timing report
+        working-directory: mast-tests
+        run: |
+          cat << EOF > "$GITHUB_STEP_SUMMARY"
+          # Span Timing Report
+
+          \`\`\`
+          $(cat reports/spanTiming/spanTiming.txt)
+          \`\`\`
+          EOF

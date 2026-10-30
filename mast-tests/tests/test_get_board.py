@@ -5,9 +5,13 @@ from uuid import uuid4
 import requests
 
 from lib.api_config import BASE_URL
+from lib.tracing import Phases
 
 
-def test_get_board_with_id_of_board_of_created_room_returns_200_with_its_content():
+def test_get_board_with_id_of_board_of_created_room_returns_200_with_its_content(
+    phases: Phases,
+):
+    phases.arrange()
     dsl = f'# eventstorming v1\n\nevent     e1   "{uuid4().hex}" @ 0,0\n'
     compressor = zlib.compressobj(wbits=-15)
     data = (
@@ -20,14 +24,19 @@ def test_get_board_with_id_of_board_of_created_room_returns_200_with_its_content
     boards = requests.get(f"{BASE_URL}/rooms/{created.json()['id']}/boards")
     assert boards.status_code == 200
 
+    phases.act()
     response = requests.get(f"{BASE_URL}/boards/{boards.json()['boards'][0]}")
 
+    phases.assert_()
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/plain"
     assert response.text == dsl
 
 
-def test_get_board_with_id_of_board_of_created_room_by_another_user_returns_the_same_content():
+def test_get_board_with_id_of_board_of_created_room_by_another_user_returns_the_same_content(
+    phases: Phases,
+):
+    phases.arrange()
     dsl = f'# eventstorming v1\n\nevent     e1   "{uuid4().hex}" @ 0,0\n'
     compressor = zlib.compressobj(wbits=-15)
     data = (
@@ -41,13 +50,18 @@ def test_get_board_with_id_of_board_of_created_room_by_another_user_returns_the_
     boards = another_user.get(f"{BASE_URL}/rooms/{created.json()['id']}/boards")
     assert boards.status_code == 200
 
+    phases.act()
     response = another_user.get(f"{BASE_URL}/boards/{boards.json()['boards'][0]}")
 
+    phases.assert_()
     assert response.status_code == 200
     assert response.text == dsl
 
 
-def test_get_board_with_id_of_board_of_room_with_applied_operations_returns_its_content_with_them():
+def test_get_board_with_id_of_board_of_room_with_applied_operations_returns_its_content_with_them(
+    phases: Phases,
+):
+    phases.arrange()
     dsl = '# eventstorming v1\n\nevent     e1   "" @ 0,0\n'
     compressor = zlib.compressobj(wbits=-15)
     data = (
@@ -78,8 +92,10 @@ def test_get_board_with_id_of_board_of_room_with_applied_operations_returns_its_
     boards = requests.get(f"{BASE_URL}/rooms/{created.json()['id']}/boards")
     assert boards.status_code == 200
 
+    phases.act()
     response = requests.get(f"{BASE_URL}/boards/{boards.json()['boards'][0]}")
 
+    phases.assert_()
     assert response.status_code == 200
     assert response.text == (
         "# eventstorming v1\n\n"
@@ -88,9 +104,11 @@ def test_get_board_with_id_of_board_of_room_with_applied_operations_returns_its_
     )
 
 
-def test_get_board_with_id_of_no_board_returns_404():
+def test_get_board_with_id_of_no_board_returns_404(phases: Phases):
+    phases.act()
     response = requests.get(f"{BASE_URL}/boards/{uuid4()}")
 
+    phases.assert_()
     assert response.status_code == 404
     assert response.headers["Content-Type"] == "application/problem+json"
     assert response.json() == {
@@ -100,7 +118,9 @@ def test_get_board_with_id_of_no_board_returns_404():
     }
 
 
-def test_get_board_with_id_not_uuid_returns_400():
+def test_get_board_with_id_not_uuid_returns_400(phases: Phases):
+    phases.act()
     response = requests.get(f"{BASE_URL}/boards/{uuid4().hex[:8]}")
 
+    phases.assert_()
     assert response.status_code == 400

@@ -5,9 +5,13 @@ from uuid import uuid4
 import requests
 
 from lib.api_config import BASE_URL
+from lib.tracing import Phases
 
 
-def test_post_room_ops_with_add_note_of_free_id_returns_200_with_it_applied():
+def test_post_room_ops_with_add_note_of_free_id_returns_200_with_it_applied(
+    phases: Phases,
+):
+    phases.arrange()
     dsl = '# eventstorming v1\n\nevent     e1   "" @ 0,0\n'
     compressor = zlib.compressobj(wbits=-15)
     data = (
@@ -18,6 +22,7 @@ def test_post_room_ops_with_add_note_of_free_id_returns_200_with_it_applied():
     created = requests.post(f"{BASE_URL}/rooms", json={"data": data})
     assert created.status_code == 201
 
+    phases.act()
     response = requests.post(
         f"{BASE_URL}/rooms/{created.json()['id']}/ops",
         json={
@@ -34,11 +39,15 @@ def test_post_room_ops_with_add_note_of_free_id_returns_200_with_it_applied():
         },
     )
 
+    phases.assert_()
     assert response.status_code == 200
     assert response.json() == {"seq": 1, "results": [{"status": "applied"}]}
 
 
-def test_post_room_ops_with_add_note_of_taken_id_returns_200_with_it_reassigned():
+def test_post_room_ops_with_add_note_of_taken_id_returns_200_with_it_reassigned(
+    phases: Phases,
+):
+    phases.arrange()
     dsl = '# eventstorming v1\n\nevent     e1   "" @ 0,0\n'
     compressor = zlib.compressobj(wbits=-15)
     data = (
@@ -49,6 +58,7 @@ def test_post_room_ops_with_add_note_of_taken_id_returns_200_with_it_reassigned(
     created = requests.post(f"{BASE_URL}/rooms", json={"data": data})
     assert created.status_code == 201
 
+    phases.act()
     response = requests.post(
         f"{BASE_URL}/rooms/{created.json()['id']}/ops",
         json={
@@ -65,6 +75,7 @@ def test_post_room_ops_with_add_note_of_taken_id_returns_200_with_it_reassigned(
         },
     )
 
+    phases.assert_()
     assert response.status_code == 200
     assert response.json() == {
         "seq": 1,
@@ -72,7 +83,10 @@ def test_post_room_ops_with_add_note_of_taken_id_returns_200_with_it_reassigned(
     }
 
 
-def test_post_room_ops_with_move_notes_of_missing_note_returns_200_with_it_skipped():
+def test_post_room_ops_with_move_notes_of_missing_note_returns_200_with_it_skipped(
+    phases: Phases,
+):
+    phases.arrange()
     dsl = '# eventstorming v1\n\nevent     e1   "" @ 0,0\n'
     compressor = zlib.compressobj(wbits=-15)
     data = (
@@ -83,6 +97,7 @@ def test_post_room_ops_with_move_notes_of_missing_note_returns_200_with_it_skipp
     created = requests.post(f"{BASE_URL}/rooms", json={"data": data})
     assert created.status_code == 201
 
+    phases.act()
     response = requests.post(
         f"{BASE_URL}/rooms/{created.json()['id']}/ops",
         json={
@@ -98,11 +113,15 @@ def test_post_room_ops_with_move_notes_of_missing_note_returns_200_with_it_skipp
         },
     )
 
+    phases.assert_()
     assert response.status_code == 200
     assert response.json() == {"seq": 0, "results": [{"status": "skipped"}]}
 
 
-def test_post_room_ops_with_operation_on_note_added_in_the_same_batch_returns_200_with_it_applied():
+def test_post_room_ops_with_operation_on_note_added_in_the_same_batch_returns_200_with_it_applied(
+    phases: Phases,
+):
+    phases.arrange()
     dsl = '# eventstorming v1\n\nevent     e1   "" @ 0,0\n'
     compressor = zlib.compressobj(wbits=-15)
     data = (
@@ -114,6 +133,7 @@ def test_post_room_ops_with_operation_on_note_added_in_the_same_batch_returns_20
     assert created.status_code == 201
     id = f"c{uuid4().hex}"
 
+    phases.act()
     response = requests.post(
         f"{BASE_URL}/rooms/{created.json()['id']}/ops",
         json={
@@ -131,6 +151,7 @@ def test_post_room_ops_with_operation_on_note_added_in_the_same_batch_returns_20
         },
     )
 
+    phases.assert_()
     assert response.status_code == 200
     assert response.json() == {
         "seq": 1,
@@ -138,7 +159,10 @@ def test_post_room_ops_with_operation_on_note_added_in_the_same_batch_returns_20
     }
 
 
-def test_post_room_ops_twice_returns_the_next_seq_for_the_second_batch():
+def test_post_room_ops_twice_returns_the_next_seq_for_the_second_batch(
+    phases: Phases,
+):
+    phases.arrange()
     dsl = '# eventstorming v1\n\nevent     e1   "" @ 0,0\n'
     compressor = zlib.compressobj(wbits=-15)
     data = (
@@ -154,13 +178,16 @@ def test_post_room_ops_twice_returns_the_next_seq_for_the_second_batch():
     first = requests.post(f"{BASE_URL}/rooms/{created.json()['id']}/ops", json=ops)
     assert first.status_code == 200
 
+    phases.act()
     response = requests.post(f"{BASE_URL}/rooms/{created.json()['id']}/ops", json=ops)
 
+    phases.assert_()
     assert response.status_code == 200
     assert response.json()["seq"] == first.json()["seq"] + 1
 
 
-def test_post_room_ops_with_id_of_no_room_returns_404():
+def test_post_room_ops_with_id_of_no_room_returns_404(phases: Phases):
+    phases.act()
     response = requests.post(
         f"{BASE_URL}/rooms/{uuid4()}/ops",
         json={
@@ -168,6 +195,7 @@ def test_post_room_ops_with_id_of_no_room_returns_404():
         },
     )
 
+    phases.assert_()
     assert response.status_code == 404
     assert response.headers["Content-Type"] == "application/problem+json"
     assert response.json() == {
@@ -177,7 +205,8 @@ def test_post_room_ops_with_id_of_no_room_returns_404():
     }
 
 
-def test_post_room_ops_with_id_not_uuid_returns_400():
+def test_post_room_ops_with_id_not_uuid_returns_400(phases: Phases):
+    phases.act()
     response = requests.post(
         f"{BASE_URL}/rooms/{uuid4().hex[:8]}/ops",
         json={
@@ -185,16 +214,20 @@ def test_post_room_ops_with_id_not_uuid_returns_400():
         },
     )
 
+    phases.assert_()
     assert response.status_code == 400
 
 
-def test_post_room_ops_without_operations_returns_400():
+def test_post_room_ops_without_operations_returns_400(phases: Phases):
+    phases.act()
     response = requests.post(f"{BASE_URL}/rooms/{uuid4()}/ops", json={"ops": []})
 
+    phases.assert_()
     assert response.status_code == 400
 
 
-def test_post_room_ops_with_unknown_note_type_returns_400():
+def test_post_room_ops_with_unknown_note_type_returns_400(phases: Phases):
+    phases.act()
     response = requests.post(
         f"{BASE_URL}/rooms/{uuid4()}/ops",
         json={
@@ -211,4 +244,5 @@ def test_post_room_ops_with_unknown_note_type_returns_400():
         },
     )
 
+    phases.assert_()
     assert response.status_code == 400
