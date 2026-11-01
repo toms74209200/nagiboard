@@ -369,6 +369,56 @@ paths:
                 type: about:blank
                 title: Not Found
                 status: 404
+  /rooms/{id}/events:
+    get:
+      tags:
+        - room
+      operationId: getRoomEvents
+      summary: Receive the changes to the board of a room
+      description: |
+        Opens a Server-Sent Events stream of the board of the room, so that a participant
+        sees the edits of the others without missing any or applying any twice.
+
+        - The first event is `snapshot`, whose `data` is a `boardSnapshot`: the board as DSL
+          and its sequence number at the moment the stream was opened.
+        - Each batch applied after that is sent as an `edited` event, whose `data` is a
+          `boardEdited`, in the order of the sequence numbers.
+        - The SSE `id` of every event is the sequence number of the board after it.
+        - Resuming with `Last-Event-ID` is not supported yet; a reconnected stream starts
+          again from a `snapshot`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The room ID returned when the room was created
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The stream of the board of the room
+          content:
+            text/event-stream:
+              schema:
+                type: string
+              example: |
+                id: 2
+                event: snapshot
+                data: {"seq":2,"dsl":"# eventstorming v1\ntitle Order flow\n\nactor     a1   \"Customer\" @ 48,232\ncommand   c1   \"Place order\" @ 216,224\n\na1 -> c1\n"}
+
+                id: 3
+                event: edited
+                data: {"seq":3,"edits":[{"type":"noteAdded","noteType":"event","id":"e2","text":"Order placed","x":384,"y":224},{"type":"notesMoved","positions":[{"id":"c1","x":216,"y":240}]}]}
+        '404':
+          description: No room has the ID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/problem'
+              example:
+                type: about:blank
+                title: Not Found
+                status: 404
   /boards/{id}:
     get:
       tags:
@@ -411,6 +461,100 @@ paths:
                 status: 404
 components:
   schemas:
+    boardSnapshot:
+      type: object
+      description: |
+        The `data` of a `snapshot` event of `GET /rooms/{id}/events`: the board of the room
+        at the moment the stream was opened. It is the first event of the stream.
+      required:
+        - seq
+        - dsl
+      properties:
+        seq:
+          type: integer
+          minimum: 0
+          description: |
+            The sequence number of the board. 0 means the board has not been edited since
+            it was created.
+        dsl:
+          type: string
+          description: The board as DSL, as returned by `GET /boards/{id}`
+    boardEdited:
+      type: object
+      description: |
+        The `data` of an `edited` event of `GET /rooms/{id}/events`: a batch applied to the
+        board of the room. Batches are sent in the order of `seq` without gaps.
+      required:
+        - seq
+        - edits
+      properties:
+        seq:
+          type: integer
+          minimum: 1
+          description: The sequence number given to the batch
+        edits:
+          type: array
+          minItems: 1
+          description: |
+            The operations of the batch that were applied, in the order they were applied.
+            Skipped operations are left out, and reassigned note IDs are the ones the
+            server assigned.
+          items:
+            description: An edit applied to the board, distinguished by `type`
+            oneOf:
+              - title: NoteAdded
+                type: object
+                description: A note was added
+                required:
+                  - type
+                  - noteType
+                  - id
+                  - text
+                  - x
+                  - 'y'
+                properties:
+                  type:
+                    type: string
+                    pattern: ^noteAdded$
+                  noteType:
+                    type: string
+                    pattern: ^(event|command|actor|aggregate|policy|readmodel|system|hotspot)$
+                  id:
+                    type: string
+                    pattern: ^[A-Za-z_][A-Za-z0-9_-]*$
+                  text:
+                    type: string
+                  x:
+                    type: number
+                  'y':
+                    type: number
+              - title: NotesMoved
+                type: object
+                description: Notes were moved to absolute positions
+                required:
+                  - type
+                  - positions
+                properties:
+                  type:
+                    type: string
+                    pattern: ^notesMoved$
+                  positions:
+                    type: array
+                    minItems: 1
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - x
+                        - 'y'
+                      properties:
+                        id:
+                          type: string
+                          pattern: ^[A-Za-z_][A-Za-z0-9_-]*$
+                        x:
+                          type: number
+                        'y':
+                          type: number
     problem:
       type: object
       description: A problem detail (RFC 9457)
