@@ -28,5 +28,104 @@ paths:
     $ref: ./room/rooms.yaml#/~1rooms~1{id}~1boards
   /rooms/{id}/ops:
     $ref: ./room/rooms.yaml#/~1rooms~1{id}~1ops
+  /rooms/{id}/events:
+    $ref: ./room/rooms.yaml#/~1rooms~1{id}~1events
   /boards/{id}:
     $ref: ./board/boards.yaml#/~1boards~1{id}
+
+components:
+  schemas:
+    boardSnapshot:
+      type: object
+      description: |
+        The `data` of a `snapshot` event of `GET /rooms/{id}/events`: the board of the room
+        at the moment the stream was opened. It is the first event of the stream.
+      required:
+        - seq
+        - dsl
+      properties:
+        seq:
+          type: integer
+          minimum: 0
+          description: |
+            The sequence number of the board. 0 means the board has not been edited since
+            it was created.
+        dsl:
+          type: string
+          description: The board as DSL, as returned by `GET /boards/{id}`
+    boardEdited:
+      type: object
+      description: |
+        The `data` of an `edited` event of `GET /rooms/{id}/events`: a batch applied to the
+        board of the room. Batches are sent in the order of `seq` without gaps.
+      required:
+        - seq
+        - edits
+      properties:
+        seq:
+          type: integer
+          minimum: 1
+          description: The sequence number given to the batch
+        edits:
+          type: array
+          minItems: 1
+          description: |
+            The operations of the batch that were applied, in the order they were applied.
+            Skipped operations are left out, and reassigned note IDs are the ones the
+            server assigned.
+          items:
+            description: An edit applied to the board, distinguished by `type`
+            oneOf:
+              - title: NoteAdded
+                type: object
+                description: A note was added
+                required:
+                  - type
+                  - noteType
+                  - id
+                  - text
+                  - x
+                  - y
+                properties:
+                  type:
+                    type: string
+                    pattern: '^noteAdded$'
+                  noteType:
+                    type: string
+                    pattern: '^(event|command|actor|aggregate|policy|readmodel|system|hotspot)$'
+                  id:
+                    type: string
+                    pattern: '^[A-Za-z_][A-Za-z0-9_-]*$'
+                  text:
+                    type: string
+                  x:
+                    type: number
+                  y:
+                    type: number
+              - title: NotesMoved
+                type: object
+                description: Notes were moved to absolute positions
+                required:
+                  - type
+                  - positions
+                properties:
+                  type:
+                    type: string
+                    pattern: '^notesMoved$'
+                  positions:
+                    type: array
+                    minItems: 1
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - x
+                        - y
+                      properties:
+                        id:
+                          type: string
+                          pattern: '^[A-Za-z_][A-Za-z0-9_-]*$'
+                        x:
+                          type: number
+                        y:
+                          type: number

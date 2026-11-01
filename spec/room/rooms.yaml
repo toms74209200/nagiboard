@@ -295,3 +295,54 @@
               type: about:blank
               title: Not Found
               status: 404
+/rooms/{id}/events:
+  get:
+    tags:
+      - room
+    operationId: getRoomEvents
+    summary: Receive the changes to the board of a room
+    description: |
+      Opens a Server-Sent Events stream of the board of the room, so that a participant
+      sees the edits of the others without missing any or applying any twice.
+
+      - The first event is `snapshot`, whose `data` is a `boardSnapshot`: the board as DSL
+        and its sequence number at the moment the stream was opened.
+      - Each batch applied after that is sent as an `edited` event, whose `data` is a
+        `boardEdited`, in the order of the sequence numbers.
+      - The SSE `id` of every event is the sequence number of the board after it.
+      - Resuming with `Last-Event-ID` is not supported yet; a reconnected stream starts
+        again from a `snapshot`.
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: The room ID returned when the room was created
+        schema:
+          type: string
+          format: uuid
+    responses:
+      '200':
+        description: The stream of the board of the room
+        content:
+          text/event-stream:
+            schema:
+              type: string
+            example: |
+              id: 2
+              event: snapshot
+              data: {"seq":2,"dsl":"# eventstorming v1\ntitle Order flow\n\nactor     a1   \"Customer\" @ 48,232\ncommand   c1   \"Place order\" @ 216,224\n\na1 -> c1\n"}
+
+              id: 3
+              event: edited
+              data: {"seq":3,"edits":[{"type":"noteAdded","noteType":"event","id":"e2","text":"Order placed","x":384,"y":224},{"type":"notesMoved","positions":[{"id":"c1","x":216,"y":240}]}]}
+
+      '404':
+        description: No room has the ID
+        content:
+          application/problem+json:
+            schema:
+              $ref: ../problem.yaml
+            example:
+              type: about:blank
+              title: Not Found
+              status: 404
