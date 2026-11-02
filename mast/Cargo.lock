@@ -776,6 +776,7 @@ dependencies = [
  "async-trait",
  "axum",
  "axum-extra",
+ "futures-util",
  "keel",
  "openapi",
  "random-string",

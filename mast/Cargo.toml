@@ -7,9 +7,10 @@ edition = "2024"
 async-trait = "0.1"
 axum = "0.8.9"
 axum-extra = { version = "0.12", features = ["cookie", "typed-header"] }
+futures-util = "0.3.34"
 keel = { version = "0.1.0", path = "../keel" }
 openapi = { version = "0.1.0", path = "openapi" }
-tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros", "net"] }
+tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros", "net", "sync"] }
 uuid = "1"
 
 [features]
