@@ -8,6 +8,12 @@ pub fn post_room_ops(
     room_events: &std::sync::Mutex<Vec<super::room_created::RoomCreated>>,
     board_events: &std::sync::Mutex<Vec<crate::board::board_created::BoardCreated>>,
     board_edited_events: &std::sync::Mutex<Vec<crate::board::board_edited::BoardEdited>>,
+    board_edited_senders: &std::sync::Mutex<
+        std::collections::HashMap<
+            uuid::Uuid,
+            tokio::sync::broadcast::Sender<crate::board::board_edited::BoardEdited>,
+        >,
+    >,
     room: uuid::Uuid,
     operations: crate::non_empty::NonEmpty<crate::board::operation::Operation>,
 ) -> Result<
@@ -35,6 +41,17 @@ pub fn post_room_ops(
         crate::board::board_edited::BoardEdited::derive(&content, operations)
             .map_err(|_| PostRoomOpsError::Internal(format!("board {board} has run out of seq")))?;
     let seq = event.as_ref().map_or(content.seq(), |e| e.seq());
+    if let Some(event) = &event {
+        let mut senders = board_edited_senders
+            .lock()
+            .map_err(|e| PostRoomOpsError::Internal(e.to_string()))?;
+        if senders
+            .get(&board)
+            .is_some_and(|sender| sender.send(event.clone()).is_err())
+        {
+            senders.remove(&board);
+        }
+    }
     edited.extend(event);
     Ok((seq, outcomes))
 }
@@ -111,6 +128,7 @@ mod medium_tests {
             &room_events,
             &board_events,
             &board_edited_events,
+            &std::sync::Mutex::default(),
             room,
             ops(vec![add_note(&id), add_note("e1")]),
         );
@@ -153,6 +171,7 @@ mod medium_tests {
             &room_events,
             &board_events,
             &board_edited_events,
+            &std::sync::Mutex::default(),
             room,
             ops(vec![add_note("e1")]),
         );
@@ -160,6 +179,7 @@ mod medium_tests {
             &room_events,
             &board_events,
             &board_edited_events,
+            &std::sync::Mutex::default(),
             room,
             ops(vec![add_note("e1")]),
         );
@@ -199,6 +219,7 @@ mod medium_tests {
             &room_events,
             &board_events,
             &board_edited_events,
+            &std::sync::Mutex::default(),
             room,
             ops(vec![move_note(&id)]),
         );
@@ -208,6 +229,49 @@ mod medium_tests {
             Ok((0, vec![crate::board::operation::Outcome::Skipped]))
         );
         assert!(board_edited_events.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn when_post_room_ops_then_sends_the_recorded_edit_to_the_board() {
+        let (room_events, board_events, room, board) = created_room();
+        let board_edited_events = std::sync::Mutex::new(Vec::new());
+        let (sender, mut receiver) = tokio::sync::broadcast::channel(16);
+
+        super::post_room_ops(
+            &room_events,
+            &board_events,
+            &board_edited_events,
+            &std::sync::Mutex::new(std::collections::HashMap::from([(board, sender)])),
+            room,
+            ops(vec![add_note("e1")]),
+        )
+        .unwrap();
+
+        assert_eq!(
+            receiver.try_recv().ok().as_ref(),
+            board_edited_events.lock().unwrap().first()
+        );
+    }
+
+    #[test]
+    fn when_post_room_ops_to_board_with_no_receiver_then_removes_its_sender() {
+        let (room_events, board_events, room, board) = created_room();
+        let senders = std::sync::Mutex::new(std::collections::HashMap::from([(
+            board,
+            tokio::sync::broadcast::channel(16).0,
+        )]));
+
+        super::post_room_ops(
+            &room_events,
+            &board_events,
+            &std::sync::Mutex::new(Vec::new()),
+            &senders,
+            room,
+            ops(vec![add_note("e1")]),
+        )
+        .unwrap();
+
+        assert!(senders.lock().unwrap().is_empty());
     }
 
     #[test]
@@ -225,6 +289,7 @@ mod medium_tests {
             &room_events,
             &board_events,
             &board_edited_events,
+            &std::sync::Mutex::default(),
             uuid::Builder::from_random_bytes(bytes).into_uuid(),
             ops(vec![add_note("e1")]),
         );

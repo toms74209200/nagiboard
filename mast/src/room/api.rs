@@ -37,6 +37,97 @@ fn operation_from_model(
 
 #[async_trait::async_trait]
 impl openapi::apis::room::Room<String> for crate::ApiImpl {
+    async fn get_room_events(
+        &self,
+        _method: &axum::http::Method,
+        _host: &axum_extra::headers::Host,
+        _cookies: &axum_extra::extract::CookieJar,
+        path_params: &openapi::models::GetRoomEventsPathParams,
+    ) -> Result<openapi::apis::room::GetRoomEventsResponse, String> {
+        let Some((snapshot, edited)) = super::get_room_events::get_room_events(
+            &self.room_events,
+            &self.board_events,
+            &self.board_edited_events,
+            &self.board_edited_senders,
+            path_params.id,
+        )?
+        else {
+            return Ok(
+                openapi::apis::room::GetRoomEventsResponse::Status404_NoRoomHasTheID(
+                    openapi::models::Problem::new(
+                        "about:blank".to_string(),
+                        "Not Found".to_string(),
+                        404,
+                    ),
+                ),
+            );
+        };
+        let snapshot = axum::response::sse::Event::default()
+            .id(snapshot.seq.value().to_string())
+            .event("snapshot")
+            .json_data(openapi::models::BoardSnapshot::new(
+                snapshot.seq.value(),
+                snapshot.dsl,
+            ))
+            .map_err(|e| e.to_string())?;
+        Ok(
+            openapi::apis::room::GetRoomEventsResponse::Status200_TheStreamOfTheBoardOfTheRoom(
+                Box::pin(futures_util::StreamExt::chain(
+                    futures_util::stream::once(std::future::ready(Ok(snapshot))),
+                    futures_util::StreamExt::scan(edited, (), |_, edited| {
+                        std::future::ready(
+                            axum::response::sse::Event::default()
+                                .id(edited.seq().value().to_string())
+                                .event("edited")
+                                .json_data(openapi::models::BoardEdited::new(
+                                    edited.seq().value(),
+                                    edited
+                                        .edits()
+                                        .iter()
+                                        .map(|edit| match edit.kind() {
+                                            crate::board::operation::EditKind::NoteAdded {
+                                                id,
+                                                note_type,
+                                                text,
+                                                x,
+                                                y,
+                                            } => openapi::models::NoteAdded::new(
+                                                "noteAdded".to_string(),
+                                                note_type.as_str().to_string(),
+                                                id.id().to_string(),
+                                                text.clone(),
+                                                *x,
+                                                *y,
+                                            )
+                                            .into(),
+                                            crate::board::operation::EditKind::NotesMoved(
+                                                positions,
+                                            ) => openapi::models::NotesMoved::new(
+                                                "notesMoved".to_string(),
+                                                positions
+                                                    .iter()
+                                                    .map(|p| {
+                                                        openapi::models::MoveNotesPositionsInner::new(
+                                                            p.id.to_string(),
+                                                            p.x,
+                                                            p.y,
+                                                        )
+                                                    })
+                                                    .collect(),
+                                            )
+                                            .into(),
+                                        })
+                                        .collect(),
+                                ))
+                                .ok()
+                                .map(Ok),
+                        )
+                    }),
+                )),
+            ),
+        )
+    }
+
     async fn get_room_boards(
         &self,
         _method: &axum::http::Method,
@@ -79,6 +170,7 @@ impl openapi::apis::room::Room<String> for crate::ApiImpl {
             &self.room_events,
             &self.board_events,
             &self.board_edited_events,
+            &self.board_edited_senders,
             path_params.id,
             operations,
         ) {
