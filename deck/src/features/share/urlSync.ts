@@ -1,12 +1,12 @@
 import { effect } from "@preact/signals";
 import { showToast } from "../../components/toast";
+import { getBoard, getRoomBoards } from "../../openapi/nagiboard";
 import { emptyBoard } from "../board/_models/board";
 import { loadBoard } from "../board/store";
 import { parseDsl, serializeDsl } from "../dsl/_models/dsl";
 import { dslText } from "../dsl/dslText";
 import { boardSourceOf } from "./_models/boardSource";
 import { decodeParamToDsl, encodeDslToParam } from "./_models/codec";
-import { fetchSharedBoard } from "./fetchSharedBoard";
 
 const URL_PARAM = "data";
 const URL_LENGTH_WARNING = 8000;
@@ -39,19 +39,30 @@ const restoreBoardFromData = async (param: string): Promise<void> => {
 };
 
 const restoreBoardFromRoom = async (id: string): Promise<void> => {
-	const result = await fetchSharedBoard(id);
-	if (result.kind === "fetched") {
-		loadDsl(result.dsl, "共有ボードの読み込みでエラー");
-		return;
+	try {
+		const room = await getRoomBoards(id);
+		if (room.status === 404) {
+			showToast("共有ルームが見つかりません", "error");
+			return;
+		}
+		if (room.status !== 200) {
+			showToast("共有ボードを読み込めませんでした", "error");
+			return;
+		}
+		const [boardId] = room.data.boards;
+		const shared = boardId ? await getBoard(boardId) : null;
+		if (!shared || shared.status === 404) {
+			showToast("共有ボードが見つかりません", "error");
+			return;
+		}
+		if (shared.status !== 200) {
+			showToast("共有ボードを読み込めませんでした", "error");
+			return;
+		}
+		loadDsl(shared.data, "共有ボードの読み込みでエラー");
+	} catch {
+		showToast("共有ボードを読み込めませんでした", "error");
 	}
-	showToast(
-		result.kind === "failed"
-			? "共有ボードを読み込めませんでした"
-			: result.target === "room"
-				? "共有ルームが見つかりません"
-				: "共有ボードが見つかりません",
-		"error",
-	);
 };
 
 export const restoreBoardFromUrl = async (): Promise<void> => {
