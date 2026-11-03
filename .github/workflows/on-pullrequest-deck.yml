@@ -6,6 +6,7 @@ on:
       - master
     paths:
       - 'deck/**'
+      - 'spec/dist/openapi.yaml'
 
 jobs:
   lint:
@@ -16,10 +17,15 @@ jobs:
     uses: ./.github/workflows/job-ts-test-small.yml
     with:
       working-directory: deck
+  build:
+    uses: ./.github/workflows/job-ts-build.yml
+    with:
+      working-directory: deck
   bundle:
     needs:
       - lint
       - test-small
+      - build
     uses: ./.github/workflows/job-ts-bundle.yml
     permissions:
       contents: write

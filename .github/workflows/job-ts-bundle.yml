@@ -28,6 +28,8 @@ jobs:
           cache-dependency-path: ${{ inputs.working-directory }}/package-lock.json
       - name: Install dependencies
         run: npm ci
+      - name: Generate
+        run: npm run generate --if-present
       - name: Bundle
         run: npm run bundle
       - id: check-bundle
