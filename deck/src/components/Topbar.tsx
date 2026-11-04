@@ -10,25 +10,37 @@ import {
 	downloadBoardPng,
 	downloadBoardSvg,
 } from "../features/imageExport/download";
-import { shareBoard } from "../features/share/shareBoard";
+import { encodeDslToParam } from "../features/share/_models/codec";
+import { postRooms } from "../openapi/nagiboard";
 import { showToast } from "./toast";
 
 export const Topbar = ({ onShowRules }: { onShowRules: () => void }) => {
 	const share = async () => {
-		const result = await shareBoard(dslText.peek());
-		if (result.kind === "rejected") {
-			showToast(result.message, "error");
-			return;
-		}
-		if (result.kind === "failed") {
-			showToast("ボードを共有できませんでした", "error");
-			return;
-		}
 		try {
-			await navigator.clipboard.writeText(result.shareUrl);
-			showToast("共有リンクをコピーしました");
+			const res = await postRooms({
+				data: await encodeDslToParam(dslText.peek()),
+			});
+			if (res.status !== 201) {
+				showToast(
+					res.data.diagnostics?.[0]?.message ??
+						res.data.detail ??
+						"ボードを共有できませんでした",
+					"error",
+				);
+				return;
+			}
+			const url = new URL(location.href);
+			url.searchParams.set("room", res.data.id);
+			history.replaceState(null, "", url);
+			const shareUrl = new URL(res.data.shareUrl, location.href).href;
+			try {
+				await navigator.clipboard.writeText(shareUrl);
+				showToast("共有リンクをコピーしました");
+			} catch {
+				showToast(`共有リンク: ${shareUrl}`);
+			}
 		} catch {
-			showToast(`共有リンク: ${result.shareUrl}`);
+			showToast("ボードを共有できませんでした", "error");
 		}
 	};
 
