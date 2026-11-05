@@ -1,10 +1,16 @@
 import type { RefObject } from "preact";
+import { useRef } from "preact/hooks";
 import { ADJACENT_GAP } from "./_models/board";
 import {
 	CONNECTION_RULES,
 	NOTE_TYPE_ORDER,
 	NOTE_TYPES,
 } from "./_models/noteType";
+
+export const useRulesDialog = () => {
+	const dialogRef = useRef<HTMLDialogElement>(null);
+	return { dialogRef, show: () => dialogRef.current?.showModal() };
+};
 
 export const RulesDialog = ({
 	dialogRef,

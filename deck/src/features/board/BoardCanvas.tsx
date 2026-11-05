@@ -1,9 +1,22 @@
-import { useSignal } from "@preact/signals";
-import { useEffect, useRef } from "preact/hooks";
+import type { Signal } from "@preact/signals";
+import { batch, useSignal, useSignalEffect } from "@preact/signals";
+import { useContext, useEffect, useRef } from "preact/hooks";
+import { BoardState } from "../../boardState";
 import { ToastView } from "../../components/ToastView";
 import { showToast } from "../../components/toast";
-import type { Note } from "./_models/board";
-import { edgeKey, findNote, noteRect, notesInRect } from "./_models/board";
+import type { Clipboard, Note } from "./_models/board";
+import {
+	addNote,
+	clipSelection,
+	connect,
+	edgeKey,
+	findAdjacentConnection,
+	findNote,
+	noteRect,
+	notesInRect,
+	pasteClipboard,
+	removeSelection,
+} from "./_models/board";
 import type { Point, Rect } from "./_models/geometry";
 import {
 	nearestSidePoint,
@@ -11,32 +24,25 @@ import {
 	snapToGrid,
 } from "./_models/geometry";
 import type { NoteId } from "./_models/noteId";
+import type { NoteType } from "./_models/noteType";
 import { NOTE_TYPES } from "./_models/noteType";
+import type { Selection } from "./_models/selection";
 import {
 	emptySelection,
+	isEmptySelection,
 	onlyEdge,
 	onlyNote,
+	withinBoard,
 	withNotes,
 	withToggledEdge,
 	withToggledNote,
 } from "./_models/selection";
 import { EdgeView } from "./EdgeView";
+import type { EditingNote } from "./NoteView";
 import { NoteView } from "./NoteView";
 import { Palette } from "./Palette";
-import {
-	activeTool,
-	board,
-	connectNotes,
-	copySelectionToClipboard,
-	deleteSelection,
-	editingNote,
-	pasteFromClipboard,
-	placeNote,
-	selection,
-	setNotePositions,
-	viewTransform,
-} from "./store";
 
+const PASTE_OFFSET = 24;
 const MIN_SCALE = 0.25;
 const MAX_SCALE = 2.5;
 const DOUBLE_CLICK_MS = 450;
@@ -61,7 +67,16 @@ type DragState =
 	| { readonly mode: "link"; readonly from: Note }
 	| { readonly mode: "marquee"; readonly start: Point };
 
-export const BoardCanvas = () => {
+export const BoardCanvas = ({
+	selection,
+}: {
+	selection: Signal<Selection>;
+}) => {
+	const { board } = useContext(BoardState);
+	const viewTransform = useSignal({ x: 60, y: 20, scale: 1 });
+	const activeTool = useSignal<NoteType | null>(null);
+	const editingNote = useSignal<EditingNote | null>(null);
+	const clipboard = useSignal<Clipboard | null>(null);
 	const viewportRef = useRef<HTMLDivElement>(null);
 	const tempLineD = useSignal<string | null>(null);
 	const marquee = useSignal<Rect | null>(null);
@@ -72,6 +87,13 @@ export const BoardCanvas = () => {
 		null,
 	);
 	const lastNoteClickRef = useRef<{ id: NoteId; at: number } | null>(null);
+
+	useSignalEffect(() => {
+		const current = board.value;
+		selection.value = withinBoard(selection.peek(), current);
+		const editing = editingNote.peek();
+		if (editing && !findNote(current, editing.id)) editingNote.value = null;
+	});
 
 	const viewportRect = (): DOMRect =>
 		viewportRef.current?.getBoundingClientRect() ?? new DOMRect();
@@ -220,8 +242,20 @@ export const BoardCanvas = () => {
 
 		const tool = activeTool.peek();
 		if (tool) {
-			const { note, autoEdge } = placeNote(tool, p.x, p.y);
-			pendingEditRef.current = { id: note.id, selectAll: true };
+			const added = addNote(
+				board.peek(),
+				tool,
+				snapToGrid(p.x - NOTE_TYPES[tool].width / 2),
+				snapToGrid(p.y - NOTE_TYPES[tool].height / 2),
+			);
+			const autoEdge = findAdjacentConnection(added.board, added.note);
+			batch(() => {
+				board.value = autoEdge
+					? { ...added.board, edges: [...added.board.edges, autoEdge] }
+					: added.board;
+				selection.value = onlyNote(added.note.id);
+			});
+			pendingEditRef.current = { id: added.note.id, selectAll: true };
 			if (autoEdge)
 				showToast(
 					`隣接により自動接続しました: ${autoEdge.from} → ${autoEdge.to}`,
@@ -272,14 +306,13 @@ export const BoardCanvas = () => {
 				if (!drag.moved && dx === 0 && dy === 0) return;
 				dragRef.current = { ...drag, moved: true };
 				lastNoteClickRef.current = null;
-				setNotePositions(
-					new Map(
-						[...drag.origins].map(([id, o]) => [
-							id,
-							{ x: o.x + dx, y: o.y + dy },
-						]),
-					),
-				);
+				board.value = {
+					...board.peek(),
+					notes: board.peek().notes.map((n) => {
+						const o = drag.origins.get(n.id);
+						return o ? { ...n, x: o.x + dx, y: o.y + dy } : n;
+					}),
+				};
 			} else if (drag.mode === "link") {
 				const p = toWorld(ev);
 				const start = nearestSidePoint(noteRect(drag.from), p);
@@ -309,15 +342,21 @@ export const BoardCanvas = () => {
 					?.closest<HTMLElement>(".note");
 				const toId = targetEl?.dataset.id;
 				if (toId && toId !== drag.from.id) {
-					const result = connectNotes(drag.from.id, toId);
+					const result = connect(board.peek(), drag.from.id, toId);
 					if (result.kind === "duplicate") {
 						showToast("同じ矢印が既にあります");
-					} else if (result.edge.dashed) {
-						const to = findNote(board.peek(), toId);
-						showToast(
-							`${NOTE_TYPES[drag.from.type].label} → ${to ? NOTE_TYPES[to.type].label : "?"} はルール外のため点線(例外)にしました`,
-							"error",
-						);
+					} else {
+						batch(() => {
+							board.value = result.board;
+							selection.value = onlyEdge(edgeKey(result.edge));
+						});
+						if (result.edge.dashed) {
+							const to = findNote(board.peek(), toId);
+							showToast(
+								`${NOTE_TYPES[drag.from.type].label} → ${to ? NOTE_TYPES[to.type].label : "?"} はルール外のため点線(例外)にしました`,
+								"error",
+							);
+						}
 					}
 				}
 			} else if (drag.mode === "pan") {
@@ -338,17 +377,35 @@ export const BoardCanvas = () => {
 				return;
 			const mod = ev.metaKey || ev.ctrlKey;
 			if (mod && ev.key.toLowerCase() === "c") {
-				const count = copySelectionToClipboard();
-				if (count) {
-					showToast(`付箋 ${count} 枚をコピーしました`);
+				const clip = clipSelection(board.peek(), selection.peek().noteIds);
+				if (clip.notes.length) {
+					clipboard.value = clip;
+					showToast(`付箋 ${clip.notes.length} 枚をコピーしました`);
 					ev.preventDefault();
 				}
 				return;
 			}
 			if (mod && ev.key.toLowerCase() === "v") {
-				const count = pasteFromClipboard();
-				if (count) {
-					showToast(`付箋 ${count} 枚を貼り付けました`);
+				const clip = clipboard.peek();
+				if (clip?.notes.length) {
+					const { board: next, pastedIds } = pasteClipboard(
+						board.peek(),
+						clip,
+						PASTE_OFFSET,
+					);
+					batch(() => {
+						board.value = next;
+						selection.value = withNotes(pastedIds);
+						clipboard.value = {
+							notes: clip.notes.map((n) => ({
+								...n,
+								x: n.x + PASTE_OFFSET,
+								y: n.y + PASTE_OFFSET,
+							})),
+							edges: clip.edges,
+						};
+					});
+					showToast(`付箋 ${pastedIds.length} 枚を貼り付けました`);
 					ev.preventDefault();
 				}
 				return;
@@ -359,7 +416,13 @@ export const BoardCanvas = () => {
 				return;
 			}
 			if (ev.key === "Delete" || ev.key === "Backspace") {
-				deleteSelection();
+				const current = selection.peek();
+				if (!isEmptySelection(current)) {
+					batch(() => {
+						board.value = removeSelection(board.peek(), current);
+						selection.value = emptySelection;
+					});
+				}
 				ev.preventDefault();
 				return;
 			}
@@ -445,6 +508,7 @@ export const BoardCanvas = () => {
 									edge={edge}
 									from={from}
 									to={to}
+									selection={selection}
 								/>
 							) : null;
 						})}
@@ -453,7 +517,12 @@ export const BoardCanvas = () => {
 				</svg>
 				<div id="notes">
 					{board.value.notes.map((note) => (
-						<NoteView key={note.id} note={note} />
+						<NoteView
+							key={note.id}
+							note={note}
+							selection={selection}
+							editingNote={editingNote}
+						/>
 					))}
 				</div>
 				{marqueeRect && (
@@ -469,7 +538,7 @@ export const BoardCanvas = () => {
 				)}
 			</div>
 
-			<Palette />
+			<Palette activeTool={activeTool} />
 
 			<div id="zoomControls">
 				<button type="button" class="btn" onClick={() => zoomAt(1 / 1.2)}>

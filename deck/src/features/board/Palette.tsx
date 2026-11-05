@@ -1,7 +1,12 @@
+import type { Signal } from "@preact/signals";
+import type { NoteType } from "./_models/noteType";
 import { NOTE_TYPE_ORDER, NOTE_TYPES } from "./_models/noteType";
-import { activeTool } from "./store";
 
-export const Palette = () => (
+export const Palette = ({
+	activeTool,
+}: {
+	activeTool: Signal<NoteType | null>;
+}) => (
 	<div id="palette">
 		{NOTE_TYPE_ORDER.map((type) => (
 			<button
