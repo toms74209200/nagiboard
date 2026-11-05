@@ -1,11 +1,13 @@
+import type { Signal } from "@preact/signals";
+import { batch } from "@preact/signals";
+import { useContext } from "preact/hooks";
+import { BoardState } from "../boardState";
+import { emptyBoard, removeSelection } from "../features/board/_models/board";
+import type { Selection } from "../features/board/_models/selection";
 import {
-	board,
-	clearBoard,
-	deleteSelection,
-	dslPanelVisible,
-	setTitle,
-} from "../features/board/store";
-import { dslText } from "../features/dsl/dslText";
+	emptySelection,
+	isEmptySelection,
+} from "../features/board/_models/selection";
 import {
 	downloadBoardPng,
 	downloadBoardSvg,
@@ -14,7 +16,17 @@ import { encodeDslToParam } from "../features/share/_models/codec";
 import { postRooms } from "../openapi/nagiboard";
 import { showToast } from "./toast";
 
-export const Topbar = ({ onShowRules }: { onShowRules: () => void }) => {
+export const Topbar = ({
+	selection,
+	onToggleDslPanel,
+	onShowRules,
+}: {
+	selection: Signal<Selection>;
+	onToggleDslPanel: () => void;
+	onShowRules: () => void;
+}) => {
+	const { board, dslText } = useContext(BoardState);
+
 	const share = async () => {
 		try {
 			const res = await postRooms({
@@ -63,7 +75,9 @@ export const Topbar = ({ onShowRules }: { onShowRules: () => void }) => {
 				id="boardTitle"
 				placeholder="ボード名 (title)"
 				value={board.value.title}
-				onInput={(ev) => setTitle(ev.currentTarget.value)}
+				onInput={(ev) => {
+					board.value = { ...board.peek(), title: ev.currentTarget.value };
+				}}
 			/>
 			<div class="spacer" />
 			<button type="button" class="btn" onClick={() => void share()}>
@@ -82,7 +96,15 @@ export const Topbar = ({ onShowRules }: { onShowRules: () => void }) => {
 				type="button"
 				class="btn"
 				onClick={() => {
-					if (!deleteSelection()) showToast("削除する選択がありません");
+					const current = selection.peek();
+					if (isEmptySelection(current)) {
+						showToast("削除する選択がありません");
+						return;
+					}
+					batch(() => {
+						board.value = removeSelection(board.peek(), current);
+						selection.value = emptySelection;
+					});
 				}}
 			>
 				選択を削除
@@ -91,7 +113,7 @@ export const Topbar = ({ onShowRules }: { onShowRules: () => void }) => {
 				type="button"
 				class="btn"
 				onClick={() => {
-					clearBoard();
+					board.value = { ...emptyBoard, title: board.peek().title };
 					showToast(
 						"全消去しました(DSLテキストを貼り直して適用すれば復元できます)",
 					);
@@ -99,13 +121,7 @@ export const Topbar = ({ onShowRules }: { onShowRules: () => void }) => {
 			>
 				全消去
 			</button>
-			<button
-				type="button"
-				class="btn"
-				onClick={() => {
-					dslPanelVisible.value = !dslPanelVisible.value;
-				}}
-			>
+			<button type="button" class="btn" onClick={onToggleDslPanel}>
 				DSLパネル
 			</button>
 		</header>

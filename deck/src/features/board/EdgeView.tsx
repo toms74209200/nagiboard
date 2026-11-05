@@ -1,11 +1,22 @@
+import type { Signal } from "@preact/signals";
 import { memo } from "preact/compat";
 import type { Edge, Note } from "./_models/board";
 import { edgeKey, noteRect } from "./_models/board";
 import { edgePathD } from "./_models/geometry";
-import { selection } from "./store";
+import type { Selection } from "./_models/selection";
 
 export const EdgeView = memo(
-	({ edge, from, to }: { edge: Edge; from: Note; to: Note }) => {
+	({
+		edge,
+		from,
+		to,
+		selection,
+	}: {
+		edge: Edge;
+		from: Note;
+		to: Note;
+		selection: Signal<Selection>;
+	}) => {
 		const key = edgeKey(edge);
 		const isSelected = selection.value.edgeKeys.has(key);
 		const d = edgePathD(noteRect(from), noteRect(to));

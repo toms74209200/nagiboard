@@ -7,6 +7,7 @@ import {
 	isEmptySelection,
 	onlyEdge,
 	onlyNote,
+	withinBoard,
 	withNotes,
 	withToggledEdge,
 	withToggledNote,
@@ -107,4 +108,34 @@ test.each([
 	},
 ])("$name", ({ selection, expected }) => {
 	expect(isEmptySelection(selection)).toBe(expected);
+});
+
+const note = (noteId: string) => ({
+	id: id(noteId),
+	type: "event" as const,
+	text: "",
+	x: 0,
+	y: 0,
+});
+
+test("when withinBoard then keeps only the notes and edges on the board", () => {
+	const board = {
+		title: "",
+		notes: [note("e1"), note("e2")],
+		edges: [{ from: id("e1"), to: id("e2"), dashed: false }],
+	};
+	const selection = {
+		noteIds: new Set([id("e1"), id("e9")]),
+		edgeKeys: new Set([key("e1->e2"), key("e1->e9")]),
+	};
+	expect(withinBoard(selection, board)).toEqual({
+		noteIds: new Set([id("e1")]),
+		edgeKeys: new Set([key("e1->e2")]),
+	});
+});
+
+test("when withinBoard with everything on the board then returns the same selection", () => {
+	const selection = onlyNote(id("e1"));
+	const board = { title: "", notes: [note("e1")], edges: [] };
+	expect(withinBoard(selection, board)).toBe(selection);
 });

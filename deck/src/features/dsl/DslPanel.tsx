@@ -1,10 +1,11 @@
 import { useSignalEffect } from "@preact/signals";
-import { useRef, useState } from "preact/hooks";
+import { useContext, useRef, useState } from "preact/hooks";
+import { BoardState } from "../../boardState";
 import { showToast } from "../../components/toast";
-import { board } from "../board/store";
-import { applyDslText, dslText } from "./dslText";
+import { parseDsl } from "./_models/dsl";
 
 export const DslPanel = () => {
+	const { board, dslText } = useContext(BoardState);
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const [errors, setErrors] = useState<readonly string[]>([]);
@@ -18,7 +19,7 @@ export const DslPanel = () => {
 	});
 
 	const apply = (text: string) => {
-		const result = applyDslText(text);
+		const result = parseDsl(text);
 		setErrors(result.errors);
 		if (result.errors.length) {
 			showToast(
@@ -30,6 +31,7 @@ export const DslPanel = () => {
 			);
 			return;
 		}
+		board.value = result.board;
 		showToast(
 			result.coerced
 				? `適用しました(ルール外の矢印 ${result.coerced} 本を点線に変換)`

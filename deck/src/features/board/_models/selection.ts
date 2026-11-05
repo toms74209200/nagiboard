@@ -1,4 +1,5 @@
-import type { EdgeKey } from "./board";
+import type { Board, EdgeKey } from "./board";
+import { edgeKey } from "./board";
 import type { NoteId } from "./noteId";
 
 export type Selection = {
@@ -48,3 +49,14 @@ export const withToggledEdge = (
 
 export const isEmptySelection = (selection: Selection): boolean =>
 	!selection.noteIds.size && !selection.edgeKeys.size;
+
+export const withinBoard = (selection: Selection, board: Board): Selection => {
+	const notes = new Set(board.notes.map((n) => n.id));
+	const edges = new Set(board.edges.map(edgeKey));
+	const noteIds = [...selection.noteIds].filter((id) => notes.has(id));
+	const edgeKeys = [...selection.edgeKeys].filter((key) => edges.has(key));
+	return noteIds.length === selection.noteIds.size &&
+		edgeKeys.length === selection.edgeKeys.size
+		? selection
+		: { noteIds: new Set(noteIds), edgeKeys: new Set(edgeKeys) };
+};
