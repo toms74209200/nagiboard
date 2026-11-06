@@ -13,6 +13,7 @@ import {
 	downloadBoardSvg,
 } from "../features/imageExport/download";
 import { encodeDslToParam } from "../features/share/_models/codec";
+import { parseRoomId } from "../features/share/_models/roomId";
 import { postRooms } from "../openapi/nagiboard";
 import { showToast } from "./toast";
 
@@ -25,7 +26,7 @@ export const Topbar = ({
 	onToggleDslPanel: () => void;
 	onShowRules: () => void;
 }) => {
-	const { board, dslText } = useContext(BoardState);
+	const { board, dslText, roomId } = useContext(BoardState);
 
 	const share = async () => {
 		try {
@@ -43,6 +44,7 @@ export const Topbar = ({
 			}
 			const url = new URL(location.href);
 			url.searchParams.set("room", res.data.id);
+			roomId.value = parseRoomId(res.data.id);
 			history.replaceState(null, "", url);
 			const shareUrl = new URL(res.data.shareUrl, location.href).href;
 			try {

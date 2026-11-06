@@ -22,7 +22,7 @@ const WRITE_DEBOUNCE_MS = 300;
 const EMPTY_DSL = serializeDsl(emptyBoard);
 
 export const App = () => {
-	const { board, dslText } = useContext(BoardState);
+	const { board, dslText, roomId } = useContext(BoardState);
 	const rulesDialog = useRulesDialog();
 	const [dslPanelVisible, setDslPanelVisible] = useState(true);
 	const selection = useSignal(emptySelection);
@@ -30,6 +30,10 @@ export const App = () => {
 	const restored = useSignal(source.kind === "empty");
 	const suspendedBaseline = useSignal<string | null>(null);
 	const warnedAboutLength = useSignal(false);
+
+	useEffect(() => {
+		if (source.kind !== "empty") roomId.value = source.roomId;
+	}, [roomId, source]);
 
 	useEffect(() => {
 		if (source.kind !== "data") return;
@@ -59,7 +63,7 @@ export const App = () => {
 
 	useEffect(() => {
 		if (source.kind !== "room") return;
-		getRoomBoards(source.id)
+		getRoomBoards(source.roomId)
 			.then(async (room) => {
 				if (room.status === 404) {
 					showToast("共有ルームが見つかりません", "error");

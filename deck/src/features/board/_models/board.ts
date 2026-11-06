@@ -1,4 +1,4 @@
-import type { Rect } from "./geometry";
+import type { Point, Rect } from "./geometry";
 import { intersects } from "./geometry";
 import type { NoteId } from "./noteId";
 import { parseNoteId } from "./noteId";
@@ -28,6 +28,12 @@ export type Board = {
 
 export const emptyBoard: Board = { title: "", notes: [], edges: [] };
 
+export type NoteAdded = { readonly kind: "noteAdded"; readonly note: Note };
+export type NotesMoved = {
+	readonly kind: "notesMoved";
+	readonly notes: readonly Note[];
+};
+
 export type EdgeKey = string & { readonly __brand: unique symbol };
 
 export const edgeKey = (e: Pick<Edge, "from" | "to">): EdgeKey =>
@@ -55,7 +61,7 @@ export const addNote = (
 	type: NoteType,
 	x: number,
 	y: number,
-): { board: Board; note: Note } => {
+): { board: Board; operation: NoteAdded } => {
 	const note: Note = {
 		id: nextNoteId(type, new Set(board.notes.map((n) => n.id))),
 		type,
@@ -63,20 +69,26 @@ export const addNote = (
 		x,
 		y,
 	};
-	return { board: { ...board, notes: [...board.notes, note] }, note };
+	return {
+		board: { ...board, notes: [...board.notes, note] },
+		operation: { kind: "noteAdded", note },
+	};
 };
 
 export const moveNotes = (
 	board: Board,
-	ids: ReadonlySet<string>,
-	dx: number,
-	dy: number,
-): Board => ({
-	...board,
-	notes: board.notes.map((n) =>
-		ids.has(n.id) ? { ...n, x: n.x + dx, y: n.y + dy } : n,
-	),
-});
+	positions: ReadonlyMap<string, Point>,
+): { board: Board; operation: NotesMoved | null } => {
+	const notes = board.notes.map((n) => {
+		const p = positions.get(n.id);
+		return p ? { ...n, x: p.x, y: p.y } : n;
+	});
+	const moved = notes.filter((n) => positions.has(n.id));
+	return {
+		board: { ...board, notes },
+		operation: moved.length ? { kind: "notesMoved", notes: moved } : null,
+	};
+};
 
 export const setNoteText = (
 	board: Board,

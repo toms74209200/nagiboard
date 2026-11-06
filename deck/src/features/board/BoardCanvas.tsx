@@ -4,7 +4,8 @@ import { useContext, useEffect, useRef } from "preact/hooks";
 import { BoardState } from "../../boardState";
 import { ToastView } from "../../components/ToastView";
 import { showToast } from "../../components/toast";
-import type { Clipboard, Note } from "./_models/board";
+import { postRoomOps } from "../../openapi/nagiboard";
+import type { Clipboard, Note, NotesMoved } from "./_models/board";
 import {
 	addNote,
 	clipSelection,
@@ -12,6 +13,7 @@ import {
 	edgeKey,
 	findAdjacentConnection,
 	findNote,
+	moveNotes,
 	noteRect,
 	notesInRect,
 	pasteClipboard,
@@ -61,7 +63,7 @@ type DragState =
 			readonly grabDY: number;
 			readonly anchorStart: Point;
 			readonly origins: ReadonlyMap<string, Point>;
-			readonly moved: boolean;
+			readonly operation: NotesMoved | null;
 			readonly collapseTo: NoteId | null;
 	  }
 	| { readonly mode: "link"; readonly from: Note }
@@ -72,7 +74,7 @@ export const BoardCanvas = ({
 }: {
 	selection: Signal<Selection>;
 }) => {
-	const { board } = useContext(BoardState);
+	const { board, roomId } = useContext(BoardState);
 	const viewTransform = useSignal({ x: 60, y: 20, scale: 1 });
 	const activeTool = useSignal<NoteType | null>(null);
 	const editingNote = useSignal<EditingNote | null>(null);
@@ -217,7 +219,7 @@ export const BoardCanvas = ({
 				grabDY: p.y - note.y,
 				anchorStart: { x: note.x, y: note.y },
 				origins,
-				moved: false,
+				operation: null,
 				collapseTo: wasInMultiSelection ? note.id : null,
 			};
 			ev.preventDefault();
@@ -248,14 +250,35 @@ export const BoardCanvas = ({
 				snapToGrid(p.x - NOTE_TYPES[tool].width / 2),
 				snapToGrid(p.y - NOTE_TYPES[tool].height / 2),
 			);
-			const autoEdge = findAdjacentConnection(added.board, added.note);
+			const { note } = added.operation;
+			const autoEdge = findAdjacentConnection(added.board, note);
 			batch(() => {
 				board.value = autoEdge
 					? { ...added.board, edges: [...added.board.edges, autoEdge] }
 					: added.board;
-				selection.value = onlyNote(added.note.id);
+				selection.value = onlyNote(note.id);
 			});
-			pendingEditRef.current = { id: added.note.id, selectAll: true };
+			pendingEditRef.current = { id: note.id, selectAll: true };
+			const room = roomId.peek();
+			if (room) {
+				postRoomOps(room, {
+					ops: [
+						{
+							type: "addNote",
+							noteType: note.type,
+							id: note.id,
+							text: note.text,
+							x: note.x,
+							y: note.y,
+						},
+					],
+				})
+					.then((res) => {
+						if (res.status !== 200)
+							showToast("ルームに編集を送れませんでした", "error");
+					})
+					.catch(() => showToast("ルームに編集を送れませんでした", "error"));
+			}
 			if (autoEdge)
 				showToast(
 					`隣接により自動接続しました: ${autoEdge.from} → ${autoEdge.to}`,
@@ -303,16 +326,19 @@ export const BoardCanvas = ({
 				const ny = snapToGrid(p.y - drag.grabDY);
 				const dx = nx - drag.anchorStart.x;
 				const dy = ny - drag.anchorStart.y;
-				if (!drag.moved && dx === 0 && dy === 0) return;
-				dragRef.current = { ...drag, moved: true };
+				if (!drag.operation && dx === 0 && dy === 0) return;
+				const moved = moveNotes(
+					board.peek(),
+					new Map(
+						[...drag.origins].map(([id, o]) => [
+							id,
+							{ x: o.x + dx, y: o.y + dy },
+						]),
+					),
+				);
+				dragRef.current = { ...drag, operation: moved.operation };
 				lastNoteClickRef.current = null;
-				board.value = {
-					...board.peek(),
-					notes: board.peek().notes.map((n) => {
-						const o = drag.origins.get(n.id);
-						return o ? { ...n, x: o.x + dx, y: o.y + dy } : n;
-					}),
-				};
+				board.value = moved.board;
 			} else if (drag.mode === "link") {
 				const p = toWorld(ev);
 				const start = nearestSidePoint(noteRect(drag.from), p);
@@ -365,7 +391,28 @@ export const BoardCanvas = ({
 				const rect = marquee.peek();
 				marquee.value = null;
 				if (rect) selection.value = withNotes(notesInRect(board.peek(), rect));
-			} else if (drag.mode === "note" && !drag.moved && drag.collapseTo) {
+			} else if (drag.mode === "note" && drag.operation) {
+				const room = roomId.peek();
+				if (room) {
+					postRoomOps(room, {
+						ops: [
+							{
+								type: "moveNotes",
+								positions: drag.operation.notes.map((n) => ({
+									id: n.id,
+									x: n.x,
+									y: n.y,
+								})),
+							},
+						],
+					})
+						.then((res) => {
+							if (res.status !== 200)
+								showToast("ルームに編集を送れませんでした", "error");
+						})
+						.catch(() => showToast("ルームに編集を送れませんでした", "error"));
+				}
+			} else if (drag.mode === "note" && drag.collapseTo) {
 				selection.value = onlyNote(drag.collapseTo);
 			}
 		};

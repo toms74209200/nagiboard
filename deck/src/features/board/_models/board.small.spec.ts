@@ -68,24 +68,43 @@ test.each([
 	expect(nextNoteId(type, new Set(taken))).toBe(expected);
 });
 
-test("when addNote then appends note with type label as default text", () => {
-	const { board: next, note: added } = addNote(emptyBoard, "event", 10, 20);
-	expect(added).toEqual({
-		id: "e1",
-		type: "event",
-		text: "ドメインイベント",
-		x: 10,
-		y: 20,
+test("when addNote then appends note with type label as default text and it is added", () => {
+	const { board: next, operation } = addNote(emptyBoard, "event", 10, 20);
+	expect(operation).toEqual({
+		kind: "noteAdded",
+		note: {
+			id: "e1",
+			type: "event",
+			text: "ドメインイベント",
+			x: 10,
+			y: 20,
+		},
 	});
-	expect(next.notes).toEqual([added]);
+	expect(next.notes).toEqual([operation.note]);
 });
 
-test("when moveNotes then moves only the given ids", () => {
+test("when moveNotes then moves only the given ids to the positions and they are moved", () => {
 	const b = board([note("e1", "event", 0, 0), note("c1", "command", 100, 0)]);
-	const moved = moveNotes(b, new Set(["e1"]), 8, 16);
-	expect(moved.notes[0]).toMatchObject({ x: 8, y: 16 });
-	expect(moved.notes[1]).toMatchObject({ x: 100, y: 0 });
-	expect(moved.notes[1]).toBe(b.notes[1]);
+	const { board: next, operation } = moveNotes(
+		b,
+		new Map([["e1", { x: 8, y: 16 }]]),
+	);
+	expect(next.notes[0]).toMatchObject({ x: 8, y: 16 });
+	expect(next.notes[1]).toBe(b.notes[1]);
+	expect(operation).toEqual({
+		kind: "notesMoved",
+		notes: [note("e1", "event", 8, 16)],
+	});
+});
+
+test("when moveNotes with only ids not on the board then nothing is moved", () => {
+	const b = board([note("e1", "event", 0, 0)]);
+	const { board: next, operation } = moveNotes(
+		b,
+		new Map([["c1", { x: 8, y: 16 }]]),
+	);
+	expect(next.notes).toEqual(b.notes);
+	expect(operation).toBeNull();
 });
 
 test.each([
