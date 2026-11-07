@@ -398,11 +398,7 @@ export const BoardCanvas = ({
 						ops: [
 							{
 								type: "moveNotes",
-								positions: drag.operation.notes.map((n) => ({
-									id: n.id,
-									x: n.x,
-									y: n.y,
-								})),
+								positions: [...drag.operation.positions],
 							},
 						],
 					})

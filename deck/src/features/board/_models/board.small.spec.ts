@@ -2,6 +2,7 @@ import { expect, test } from "vitest";
 import type { Board, Edge, Note } from "./board";
 import {
 	addNote,
+	applyOperation,
 	clipSelection,
 	connect,
 	edgeKey,
@@ -93,8 +94,38 @@ test("when moveNotes then moves only the given ids to the positions and they are
 	expect(next.notes[1]).toBe(b.notes[1]);
 	expect(operation).toEqual({
 		kind: "notesMoved",
-		notes: [note("e1", "event", 8, 16)],
+		positions: [{ id: "e1", x: 8, y: 16 }],
 	});
+});
+
+test("when applyOperation with added note not on the board then adds it", () => {
+	const added = note("e2", "event", 8, 16);
+	expect(
+		applyOperation(board([note("e1", "event")]), {
+			kind: "noteAdded",
+			note: added,
+		}).notes,
+	).toEqual([note("e1", "event"), added]);
+});
+
+test("when applyOperation with added note already on the board then keeps the board", () => {
+	const b = board([note("e1", "event")]);
+	expect(
+		applyOperation(b, { kind: "noteAdded", note: note("e1", "event", 8, 16) }),
+	).toBe(b);
+});
+
+test("when applyOperation with moved notes then moves those on the board", () => {
+	const b = board([note("e1", "event", 0, 0)]);
+	expect(
+		applyOperation(b, {
+			kind: "notesMoved",
+			positions: [
+				{ id: nid("e1"), x: 8, y: 16 },
+				{ id: nid("c1"), x: 1, y: 1 },
+			],
+		}).notes,
+	).toEqual([note("e1", "event", 8, 16)]);
 });
 
 test("when moveNotes with only ids not on the board then nothing is moved", () => {

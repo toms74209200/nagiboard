@@ -3,7 +3,7 @@ import { useContext, useEffect, useMemo, useState } from "preact/hooks";
 import { BoardState } from "./boardState";
 import { Topbar } from "./components/Topbar";
 import { showToast } from "./components/toast";
-import { emptyBoard } from "./features/board/_models/board";
+import { applyOperation, emptyBoard } from "./features/board/_models/board";
 import { emptySelection } from "./features/board/_models/selection";
 import { BoardCanvas } from "./features/board/BoardCanvas";
 import { RulesDialog, useRulesDialog } from "./features/board/RulesDialog";
@@ -14,7 +14,12 @@ import {
 	decodeParamToDsl,
 	encodeDslToParam,
 } from "./features/share/_models/codec";
-import { getBoard, getRoomBoards } from "./openapi/nagiboard";
+import { parseRoomEvent } from "./features/share/_models/roomEvent";
+import {
+	getBoard,
+	getGetRoomEventsUrl,
+	getRoomBoards,
+} from "./openapi/nagiboard";
 
 const URL_PARAM = "data";
 const URL_LENGTH_WARNING = 8000;
@@ -104,6 +109,26 @@ export const App = () => {
 				restored.value = true;
 			});
 	}, [board, dslText, restored, source, suspendedBaseline]);
+
+	useSignalEffect(() => {
+		const room = roomId.value;
+		if (!room) return;
+		const events = new EventSource(getGetRoomEventsUrl(room));
+		for (const event of ["snapshot", "edited"]) {
+			events.addEventListener(event, (ev) => {
+				try {
+					const parsed = parseRoomEvent(event, ev.data);
+					board.value =
+						parsed.kind === "snapshot"
+							? parsed.board
+							: parsed.operations.reduce(applyOperation, board.peek());
+				} catch {
+					showToast("ルームの編集を読み込めませんでした", "error");
+				}
+			});
+		}
+		return () => events.close();
+	});
 
 	useSignalEffect(() => {
 		if (!restored.value) return;
