@@ -31,8 +31,13 @@ export const emptyBoard: Board = { title: "", notes: [], edges: [] };
 export type NoteAdded = { readonly kind: "noteAdded"; readonly note: Note };
 export type NotesMoved = {
 	readonly kind: "notesMoved";
-	readonly notes: readonly Note[];
+	readonly positions: readonly {
+		readonly id: NoteId;
+		readonly x: number;
+		readonly y: number;
+	}[];
 };
+export type ExecutedOperation = NoteAdded | NotesMoved;
 
 export type EdgeKey = string & { readonly __brand: unique symbol };
 
@@ -83,12 +88,27 @@ export const moveNotes = (
 		const p = positions.get(n.id);
 		return p ? { ...n, x: p.x, y: p.y } : n;
 	});
-	const moved = notes.filter((n) => positions.has(n.id));
+	const moved = notes
+		.filter((n) => positions.has(n.id))
+		.map(({ id, x, y }) => ({ id, x, y }));
 	return {
 		board: { ...board, notes },
-		operation: moved.length ? { kind: "notesMoved", notes: moved } : null,
+		operation: moved.length ? { kind: "notesMoved", positions: moved } : null,
 	};
 };
+
+export const applyOperation = (
+	board: Board,
+	operation: ExecutedOperation,
+): Board =>
+	operation.kind === "noteAdded"
+		? board.notes.some((n) => n.id === operation.note.id)
+			? board
+			: { ...board, notes: [...board.notes, operation.note] }
+		: moveNotes(
+				board,
+				new Map(operation.positions.map(({ id, x, y }) => [id, { x, y }])),
+			).board;
 
 export const setNoteText = (
 	board: Board,
