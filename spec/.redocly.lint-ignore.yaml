@@ -3,6 +3,7 @@
 deck/deck.yaml:
   operation-4xx-response:
     - '#/~1/get/responses'
+    - '#/~1llms.txt/get/responses'
 openapi.yaml:
   no-unused-components:
     - '#/components/schemas/boardSnapshot'
