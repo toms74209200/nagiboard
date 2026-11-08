@@ -22,6 +22,8 @@ paths:
     $ref: ./deck/deck.yaml#/~1
   /assets/{name}:
     $ref: ./deck/deck.yaml#/~1assets~1{name}
+  /llms.txt:
+    $ref: ./deck/deck.yaml#/~1llms.txt
   /rooms:
     $ref: ./room/rooms.yaml#/~1rooms
   /rooms/{id}/boards:

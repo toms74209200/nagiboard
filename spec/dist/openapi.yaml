@@ -72,6 +72,22 @@ paths:
                 type: about:blank
                 title: Not Found
                 status: 404
+  /llms.txt:
+    get:
+      tags:
+        - deck
+      operationId: getLlmsTxt
+      summary: Read how AI agents use the board
+      description: |
+        Returns, in the llms.txt format, how an AI agent joins a room from its share link:
+        reading the board, sending operations, and receiving the changes of the others.
+      responses:
+        '200':
+          description: How AI agents use the board
+          content:
+            text/markdown:
+              schema:
+                type: string
   /rooms:
     post:
       tags:
