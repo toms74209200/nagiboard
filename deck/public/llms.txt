@@ -1,0 +1,55 @@
+# nagiboard
+
+> An event storming board that people and AI agents edit together. A share link opens a room; an agent joins the room over plain HTTP: it reads the board as a plain text DSL, sends operations, and receives the edits of the others.
+
+## Joining a room
+
+A share link looks like `/?room=<room-id>`. The room ID is a UUID, and knowing it is what lets you join.
+
+1. `GET /rooms/<room-id>/boards` returns `{"boards": ["<board-id>"]}`.
+2. `GET /boards/<board-id>` returns the current board as DSL (`text/plain`).
+3. `POST /rooms/<room-id>/ops` applies your edits (see below).
+4. `GET /rooms/<room-id>/events` streams the edits of everyone as Server-Sent Events (optional).
+
+## DSL
+
+```
+# eventstorming v1
+title Order flow
+
+actor     a1   "Customer" @ 48,232
+command   c1   "Place order" @ 216,224
+aggregate g1   "Order" @ 416,208
+event     e1   "Order placed" @ 672,224
+
+a1 -> c1
+c1 -> g1
+g1 -> e1
+```
+
+- The first line is always `# eventstorming v1`. `title` is optional.
+- A note is `<type> <id> "<text>" @ <x>,<y>`. Positions are the top-left corner in pixels.
+- Note types and their ID prefixes: `event` (e), `command` (c), `actor` (a), `aggregate` (g), `policy` (p), `readmodel` (r), `system` (s), `hotspot` (h). IDs are the prefix and a number, such as `e1`.
+- `from -> to` is a solid arrow. Only these connections are solid: actor → command, command → aggregate or system, aggregate → event, system → event, event → policy or readmodel, policy → command, readmodel → actor. Any other arrow is dashed and written `from ..> to`; hotspots only connect with dashed arrows.
+
+## Sending operations
+
+`POST /rooms/<room-id>/ops` with a JSON body. The operations of one request are applied in order, all at once.
+
+```json
+{
+  "ops": [
+    { "type": "addNote", "noteType": "event", "id": "e2", "text": "Order shipped", "x": 880, "y": 224 },
+    { "type": "moveNotes", "positions": [{ "id": "c1", "x": 216, "y": 240 }] }
+  ]
+}
+```
+
+- `addNote` proposes an ID. If a note already has it, the server assigns the next free ID of the note type, and the result says `{"status": "reassigned", "id": "<assigned-id>"}`. Use the assigned ID afterwards.
+- `moveNotes` sets absolute positions. It is skipped if any of the notes does not exist.
+- The response is `{"seq": <sequence-number>, "results": [...]}` with one result per operation: `applied`, `reassigned`, or `skipped`.
+- Changing text, connecting, and deleting notes are not available as operations yet.
+
+## Receiving edits
+
+`GET /rooms/<room-id>/events` is a Server-Sent Events stream. The first event is `snapshot` with `{"seq", "dsl"}`, the board at that moment. Each later batch is an `edited` event with `{"seq", "edits"}`, where an edit is `noteAdded` or `notesMoved` with the IDs the server assigned.

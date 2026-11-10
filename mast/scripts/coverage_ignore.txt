@@ -6,6 +6,7 @@ room/api
 board/get_board
 deck/get_deck
 deck/get_deck_asset
+deck/get_llms_txt
 room/create_room
 room/get_room_boards
 room/get_room_events

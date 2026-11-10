@@ -14,6 +14,19 @@ impl openapi::apis::deck::Deck<String> for crate::ApiImpl {
         )
     }
 
+    async fn get_llms_txt(
+        &self,
+        _method: &axum::http::Method,
+        _host: &axum_extra::headers::Host,
+        _cookies: &axum_extra::extract::CookieJar,
+    ) -> Result<openapi::apis::deck::GetLlmsTxtResponse, String> {
+        Ok(
+            openapi::apis::deck::GetLlmsTxtResponse::Status200_HowAIAgentsUseTheBoard(
+                super::get_llms_txt::get_llms_txt(&self.deck_dir)?,
+            ),
+        )
+    }
+
     async fn get_deck_asset(
         &self,
         _method: &axum::http::Method,
